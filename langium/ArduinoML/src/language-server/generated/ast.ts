@@ -54,6 +54,19 @@ export function isApp(item: unknown): item is App {
     return reflection.isInstance(item, App);
 }
 
+export interface Condition extends AstNode {
+    readonly $container: Transition;
+    readonly $type: 'Condition';
+    sensor: Reference<Sensor>
+    value: Signal
+}
+
+export const Condition = 'Condition';
+
+export function isCondition(item: unknown): item is Condition {
+    return reflection.isInstance(item, Condition);
+}
+
 export interface Sensor extends AstNode {
     readonly $container: App;
     readonly $type: 'Sensor';
@@ -68,7 +81,7 @@ export function isSensor(item: unknown): item is Sensor {
 }
 
 export interface Signal extends AstNode {
-    readonly $container: Action | Transition;
+    readonly $container: Action | Condition;
     readonly $type: 'Signal';
     value: string
 }
@@ -96,9 +109,8 @@ export function isState(item: unknown): item is State {
 export interface Transition extends AstNode {
     readonly $container: State;
     readonly $type: 'Transition';
+    condition: Array<Condition>
     next: Reference<State>
-    sensor: Reference<Sensor>
-    value: Signal
 }
 
 export const Transition = 'Transition';
@@ -112,6 +124,7 @@ export interface ArduinoMlAstType {
     Actuator: Actuator
     App: App
     Brick: Brick
+    Condition: Condition
     Sensor: Sensor
     Signal: Signal
     State: State
@@ -121,7 +134,7 @@ export interface ArduinoMlAstType {
 export class ArduinoMlAstReflection extends AbstractAstReflection {
 
     getAllTypes(): string[] {
-        return ['Action', 'Actuator', 'App', 'Brick', 'Sensor', 'Signal', 'State', 'Transition'];
+        return ['Action', 'Actuator', 'App', 'Brick', 'Condition', 'Sensor', 'Signal', 'State', 'Transition'];
     }
 
     protected override computeIsSubtype(subtype: string, supertype: string): boolean {
@@ -146,7 +159,7 @@ export class ArduinoMlAstReflection extends AbstractAstReflection {
             case 'Transition:next': {
                 return State;
             }
-            case 'Transition:sensor': {
+            case 'Condition:sensor': {
                 return Sensor;
             }
             default: {
@@ -171,6 +184,14 @@ export class ArduinoMlAstReflection extends AbstractAstReflection {
                     name: 'State',
                     mandatory: [
                         { name: 'actions', type: 'array' }
+                    ]
+                };
+            }
+            case 'Transition': {
+                return {
+                    name: 'Transition',
+                    mandatory: [
+                        { name: 'condition', type: 'array' }
                     ]
                 };
             }
