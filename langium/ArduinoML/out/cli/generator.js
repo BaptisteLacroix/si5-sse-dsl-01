@@ -173,9 +173,9 @@ function compileLCDAction(lcdAction, fileNode) {
 					lcd.setCursor(0, 0);`);
     for (const part of lcdAction.parts) {
         if ('text' in part) {
-            // ConstantPart - STRING terminal includes quotes
+            // ConstantPart
             fileNode.append(`
-					lcd.print(` + part.text + `);`);
+					lcd.print('${part.text}');`);
         }
         else {
             // BrickStatusPart
@@ -183,12 +183,12 @@ function compileLCDAction(lcdAction, fileNode) {
             if (brick && 'inputPin' in brick) {
                 // Sensor
                 fileNode.append(`
-					lcd.print(digitalRead(` + brick.inputPin + `) == HIGH ? "HIGH" : "LOW");`);
+					lcd.print(digitalRead(${brick.inputPin}) == HIGH ? "HIGH" : "LOW");`);
             }
             else if (brick && 'outputPin' in brick) {
                 // Actuator
                 fileNode.append(`
-					lcd.print(digitalRead(` + brick.outputPin + `) == HIGH ? "ON" : "OFF");`);
+					lcd.print(digitalRead(${brick.outputPin}) == HIGH ? "ON" : "OFF");`);
             }
         }
     }

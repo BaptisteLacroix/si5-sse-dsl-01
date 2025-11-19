@@ -197,7 +197,7 @@ long `+brick.name+`LastDebounceTime = 0;
 			if ('text' in part) {
 				// ConstantPart
 				fileNode.append(`
-					lcd.print(${part.text});`);
+					lcd.print('${part.text}');`);
 			} else {
 				// BrickStatusPart
 				const brick = part.brick.ref;
