@@ -10,16 +10,17 @@ app RedButton initial state off {
 		Actuator buzzer : 11
 		Sensor button : 8
 	
-    off {
-        red_led <= LOW
-        buzzer <= LOW
-        button is HIGH => on
-    }
-    on {
-        red_led <= HIGH
-        buzzer <= HIGH
-        button is LOW => off
-    }
+	states
+		off {
+			red_led <= LOW
+			buzzer <= LOW
+			button is HIGH => on
+		}
+		on {
+			red_led <= HIGH
+			buzzer <= HIGH
+			button is LOW => off
+		}
 }
 ```
 
@@ -34,14 +35,15 @@ app RedButton initial state off {
 		Sensor button1 : 8
 		Sensor button2 : 10
 		
-    off {
-        buzzer <= LOW
-        button1 is HIGH and button2 is HIGH => on
-    }
-    on {
-        buzzer <= HIGH
-        button1 is LOW or button2 is LOW => off
-    }
+	states
+		off {
+			buzzer <= LOW
+			button1 is HIGH and button2 is HIGH => on
+		}
+		on {
+			buzzer <= HIGH
+			button1 is LOW or button2 is LOW => off
+		}
 }
 ```
 
@@ -78,21 +80,21 @@ app MultiStateAlarm initial state ready {
 		Sensor button : 9
 		
 	states
-	ready {
-		buzzer <= LOW
-		led <= LOW
-		button is HIGH => buzzing
-	}
-	buzzing {
-		buzzer <= HIGH
-		led <= LOW
-		button is HIGH => led_on
-	}
-	led_on {
-		buzzer <= LOW
-		led <= HIGH
-		button is HIGH => ready
-	}
+		ready {
+			buzzer <= LOW
+			led <= LOW
+			button is HIGH => buzzing
+		}
+		buzzing {
+			buzzer <= HIGH
+			led <= LOW
+			button is HIGH => led_on
+		}
+		led_on {
+			buzzer <= LOW
+			led <= HIGH
+			button is HIGH => ready
+		}
 }
 
 ```
