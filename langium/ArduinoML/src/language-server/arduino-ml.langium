@@ -17,11 +17,11 @@ Brick :
 
 Actuator:
 	{infer Actuator}
-	'Actuator' name=ID ':' outputPin=INT;
+	'Actuator' name=ID (':' outputPin=INT)? ('type' actuatorType=('digital' | 'analog'))?;
 
 Sensor :
 	{infer Sensor}
-	'Sensor'  name=ID ':' inputPin=INT;
+	'Sensor'  name=ID (':' inputPin=INT)? ('type' sensorType=('digital' | 'analog'))?;
 	
 State :
 	name=ID '{'

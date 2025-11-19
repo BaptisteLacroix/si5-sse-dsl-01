@@ -30,8 +30,9 @@ export function isAction(item: unknown): item is Action {
 export interface Actuator extends AstNode {
     readonly $container: App;
     readonly $type: 'Actuator';
+    actuatorType?: 'analog' | 'digital'
     name: string
-    outputPin: number
+    outputPin?: number
 }
 
 export const Actuator = 'Actuator';
@@ -70,8 +71,9 @@ export function isCondition(item: unknown): item is Condition {
 export interface Sensor extends AstNode {
     readonly $container: App;
     readonly $type: 'Sensor';
-    inputPin: number
+    inputPin?: number
     name: string
+    sensorType?: 'analog' | 'digital'
 }
 
 export const Sensor = 'Sensor';

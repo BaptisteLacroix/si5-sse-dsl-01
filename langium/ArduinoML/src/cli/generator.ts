@@ -3,6 +3,7 @@ import { CompositeGeneratorNode, NL, toString } from 'langium';
 import path from 'path';
 import { Action, Actuator, App, Sensor, State, Transition } from '../language-server/generated/ast';
 import { extractDestinationAndName } from './cli-util';
+import { PinAllocator } from './pin-allocator';
 
 export function generateInoFile(app: App, filePath: string, destination: string | undefined): string {
     const data = extractDestinationAndName(filePath, destination);
@@ -21,10 +22,19 @@ export function generateInoFile(app: App, filePath: string, destination: string 
 
 
 function compile(app:App, fileNode:CompositeGeneratorNode){
+	// Check if app uses LCD (not implemented in current grammar)
+	const hasLCD = false;
+	
+	// Initialize pin allocator and allocate pins for bricks without manual assignment
+	const pinAllocator = new PinAllocator(hasLCD);
+	pinAllocator.allocatePins(app.bricks);
+	
     fileNode.append(
 	`
 //Wiring code generated from an ArduinoML model
 // Application name: `+app.name+`
+
+`+pinAllocator.getAllocationSummary()+`
 
 long debounce = 200;
 enum STATE {`+app.states.map(s => s.name).join(', ')+`};
@@ -33,7 +43,7 @@ STATE currentState = `+app.initial.ref?.name+`;`
     ,NL);
 	
     for(const brick of app.bricks){
-        if ("inputPin" in brick){
+        if (brick.$type === 'Sensor'){
             fileNode.append(`
 bool `+brick.name+`BounceGuard = false;
 long `+brick.name+`LastDebounceTime = 0;
@@ -44,10 +54,10 @@ long `+brick.name+`LastDebounceTime = 0;
     fileNode.append(`
 	void setup(){`);
     for(const brick of app.bricks){
-        if ("inputPin" in brick){
-       		compileSensor(brick,fileNode);
-		}else{
-            compileActuator(brick,fileNode);
+        if (brick.$type === 'Sensor'){
+       		compileSensor(brick as Sensor, fileNode, pinAllocator);
+		} else if (brick.$type === 'Actuator'){
+            compileActuator(brick as Actuator, fileNode, pinAllocator);
         }
 	}
 
@@ -57,7 +67,7 @@ long `+brick.name+`LastDebounceTime = 0;
 	void loop() {
 			switch(currentState){`,NL)
 			for(const state of app.states){
-				compileState(state, fileNode)
+				compileState(state, fileNode, pinAllocator)
             }
 	fileNode.append(`
 		}
@@ -69,33 +79,36 @@ long `+brick.name+`LastDebounceTime = 0;
 
     }
 
-	function compileActuator(actuator: Actuator, fileNode: CompositeGeneratorNode) {
+	function compileActuator(actuator: Actuator, fileNode: CompositeGeneratorNode, pinAllocator: PinAllocator) {
+		const pin = pinAllocator.getPin(actuator);
         fileNode.append(`
-		pinMode(`+actuator.outputPin+`, OUTPUT); // `+actuator.name+` [Actuator]`)
+		pinMode(`+pin+`, OUTPUT); // `+actuator.name+` [Actuator]`)
     }
 
-	function compileSensor(sensor:Sensor, fileNode: CompositeGeneratorNode) {
+	function compileSensor(sensor:Sensor, fileNode: CompositeGeneratorNode, pinAllocator: PinAllocator) {
+		const pin = pinAllocator.getPin(sensor);
     	fileNode.append(`
-		pinMode(`+sensor.inputPin+`, INPUT); // `+sensor.name+` [Sensor]`)
+		pinMode(`+pin+`, INPUT); // `+sensor.name+` [Sensor]`)
 	}
 
-    function compileState(state: State, fileNode: CompositeGeneratorNode) {
+    function compileState(state: State, fileNode: CompositeGeneratorNode, pinAllocator: PinAllocator) {
         fileNode.append(`
 				case `+state.name+`:`)
 		for(const action of state.actions){
-			compileAction(action, fileNode)
+			compileAction(action, fileNode, pinAllocator)
 		}
 		if (state.transition !== null){
-			compileTransition(state.transition, fileNode)
+			compileTransition(state.transition, fileNode, pinAllocator)
 		}
 		fileNode.append(`
 				break;`)
     }
 	
 
-	function compileAction(action: Action, fileNode:CompositeGeneratorNode) {
+	function compileAction(action: Action, fileNode:CompositeGeneratorNode, pinAllocator: PinAllocator) {
+		const pin = pinAllocator.getPin(action.actuator.ref!);
 		fileNode.append(`
-					digitalWrite(`+action.actuator.ref?.outputPin+`,`+action.value.value+`);`)
+					digitalWrite(`+pin+`,`+action.value.value+`);`)
 	}
 
 /**
@@ -118,13 +131,13 @@ long `+brick.name+`LastDebounceTime = 0;
  * }
  * ```
  */
-	function compileTransition(transition: Transition, fileNode:CompositeGeneratorNode) {
+	function compileTransition(transition: Transition, fileNode:CompositeGeneratorNode, pinAllocator: PinAllocator) {
 		// Collect all unique sensors from conditions (only sensors need debouncing)
 		const sensors: Sensor[] = [];
 		for (const condition of transition.conditions) {
 			const brick = condition.brick?.ref;
-			if (brick && 'inputPin' in brick && !sensors.includes(brick)) {
-				sensors.push(brick);
+			if (brick && brick.$type === 'Sensor' && !sensors.includes(brick as Sensor)) {
+				sensors.push(brick as Sensor);
 			}
 		}
 		
@@ -134,14 +147,19 @@ long `+brick.name+`LastDebounceTime = 0;
 			const condition = transition.conditions[i];
 			const brick = condition.brick.ref;
 			
+			if (!brick) continue;
+			
+			// Get the allocated pin
+			const pin = pinAllocator.getPin(brick);
+			
 			// Generate condition based on brick type
 			let condStr = '';
-			if (brick && 'inputPin' in brick) {
+			if (brick.$type === 'Sensor') {
 				// Sensor
-				condStr = `digitalRead(${brick.inputPin}) == ${condition.value.value}`;
-			} else if (brick && 'outputPin' in brick) {
+				condStr = `digitalRead(${pin}) == ${condition.value.value}`;
+			} else if (brick.$type === 'Actuator') {
 				// Actuator
-				condStr = `digitalRead(${brick.outputPin}) == ${condition.value.value}`;
+				condStr = `digitalRead(${pin}) == ${condition.value.value}`;
 			}
 			
 			if (i === 0) {

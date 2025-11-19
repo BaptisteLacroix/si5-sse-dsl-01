@@ -1,10 +1,10 @@
-app ActuatorCheck initial state init {
+app ActuatorCheck initial state off {
     bricks
         Actuator led : 12
         Sensor button : 8
 
     states
-        init {
+        off {
             led <= LOW
             led is LOW => waiting
         }
@@ -16,6 +16,6 @@ app ActuatorCheck initial state init {
             led is HIGH => done
         }
         done {
-            button is HIGH => init
+            button is HIGH => off
         }
 }

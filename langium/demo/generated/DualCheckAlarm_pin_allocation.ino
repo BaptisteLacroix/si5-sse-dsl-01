@@ -3,10 +3,10 @@
 // Application name: RedButton
 
 // Pin Allocation Summary:
-//   red_led (Actuator): Pin D12 (12)
-//   buzzer (Actuator): Pin D11 (11)
-//   button1 (Sensor): Pin D8 (8)
-//   button2 (Sensor): Pin D9 (9)
+//   red_led (Actuator): Pin D8 (8)
+//   buzzer (Actuator): Pin D9 (9)
+//   button1 (Sensor): Pin D10 (10)
+//   button2 (Sensor): Pin D11 (11)
 
 long debounce = 200;
 enum STATE {off, on};
@@ -24,17 +24,16 @@ long button2LastDebounceTime = 0;
             
 
 	void setup(){
-		pinMode(12, OUTPUT); // red_led [Actuator]
-		pinMode(11, OUTPUT); // buzzer [Actuator]
-		pinMode(8, INPUT); // button1 [Sensor]
-		pinMode(9, INPUT); // button2 [Sensor]
+		pinMode(9, OUTPUT); // buzzer [Actuator]
+		pinMode(10, INPUT); // button1 [Sensor]
+		pinMode(11, INPUT); // button2 [Sensor]
 	}
 	void loop() {
 			switch(currentState){
 
 				case off:
-					digitalWrite(11,LOW);
-					if( (digitalRead(8) == HIGH && digitalRead(9) == HIGH) && (millis() - button1LastDebounceTime > debounce && millis() - button2LastDebounceTime > debounce) ) {
+					digitalWrite(9,LOW);
+					if( (digitalRead(10) == HIGH && digitalRead(11) == HIGH) && (millis() - button1LastDebounceTime > debounce && millis() - button2LastDebounceTime > debounce) ) {
 						button1LastDebounceTime = millis();
 						button2LastDebounceTime = millis();
 						currentState = on;
@@ -42,8 +41,8 @@ long button2LastDebounceTime = 0;
 		
 				break;
 				case on:
-					digitalWrite(11,HIGH);
-					if( (digitalRead(8) == LOW || digitalRead(9) == LOW) && (millis() - button1LastDebounceTime > debounce && millis() - button2LastDebounceTime > debounce) ) {
+					digitalWrite(9,HIGH);
+					if( (digitalRead(10) == LOW || digitalRead(11) == LOW) && (millis() - button1LastDebounceTime > debounce && millis() - button2LastDebounceTime > debounce) ) {
 						button1LastDebounceTime = millis();
 						button2LastDebounceTime = millis();
 						currentState = off;

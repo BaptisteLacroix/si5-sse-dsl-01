@@ -194,20 +194,54 @@ export const ArduinoMlGrammar = (): Grammar => loadedArduinoMlGrammar ?? (loaded
             }
           },
           {
-            "$type": "Keyword",
-            "value": ":"
+            "$type": "Group",
+            "elements": [
+              {
+                "$type": "Keyword",
+                "value": ":"
+              },
+              {
+                "$type": "Assignment",
+                "feature": "outputPin",
+                "operator": "=",
+                "terminal": {
+                  "$type": "RuleCall",
+                  "rule": {
+                    "$ref": "#/rules@13"
+                  },
+                  "arguments": []
+                }
+              }
+            ],
+            "cardinality": "?"
           },
           {
-            "$type": "Assignment",
-            "feature": "outputPin",
-            "operator": "=",
-            "terminal": {
-              "$type": "RuleCall",
-              "rule": {
-                "$ref": "#/rules@13"
+            "$type": "Group",
+            "elements": [
+              {
+                "$type": "Keyword",
+                "value": "type"
               },
-              "arguments": []
-            }
+              {
+                "$type": "Assignment",
+                "feature": "actuatorType",
+                "operator": "=",
+                "terminal": {
+                  "$type": "Alternatives",
+                  "elements": [
+                    {
+                      "$type": "Keyword",
+                      "value": "digital"
+                    },
+                    {
+                      "$type": "Keyword",
+                      "value": "analog"
+                    }
+                  ]
+                }
+              }
+            ],
+            "cardinality": "?"
           }
         ]
       },
@@ -248,20 +282,54 @@ export const ArduinoMlGrammar = (): Grammar => loadedArduinoMlGrammar ?? (loaded
             }
           },
           {
-            "$type": "Keyword",
-            "value": ":"
+            "$type": "Group",
+            "elements": [
+              {
+                "$type": "Keyword",
+                "value": ":"
+              },
+              {
+                "$type": "Assignment",
+                "feature": "inputPin",
+                "operator": "=",
+                "terminal": {
+                  "$type": "RuleCall",
+                  "rule": {
+                    "$ref": "#/rules@13"
+                  },
+                  "arguments": []
+                }
+              }
+            ],
+            "cardinality": "?"
           },
           {
-            "$type": "Assignment",
-            "feature": "inputPin",
-            "operator": "=",
-            "terminal": {
-              "$type": "RuleCall",
-              "rule": {
-                "$ref": "#/rules@13"
+            "$type": "Group",
+            "elements": [
+              {
+                "$type": "Keyword",
+                "value": "type"
               },
-              "arguments": []
-            }
+              {
+                "$type": "Assignment",
+                "feature": "sensorType",
+                "operator": "=",
+                "terminal": {
+                  "$type": "Alternatives",
+                  "elements": [
+                    {
+                      "$type": "Keyword",
+                      "value": "digital"
+                    },
+                    {
+                      "$type": "Keyword",
+                      "value": "analog"
+                    }
+                  ]
+                }
+              }
+            ],
+            "cardinality": "?"
           }
         ]
       },
