@@ -109,8 +109,9 @@ export function isState(item: unknown): item is State {
 export interface Transition extends AstNode {
     readonly $container: State;
     readonly $type: 'Transition';
-    condition: Array<Condition>
+    conditions: Array<Condition>
     next: Reference<State>
+    operator: Array<'and' | 'or'>
 }
 
 export const Transition = 'Transition';
@@ -191,7 +192,8 @@ export class ArduinoMlAstReflection extends AbstractAstReflection {
                 return {
                     name: 'Transition',
                     mandatory: [
-                        { name: 'condition', type: 'array' }
+                        { name: 'conditions', type: 'array' },
+                        { name: 'operator', type: 'array' }
                     ]
                 };
             }

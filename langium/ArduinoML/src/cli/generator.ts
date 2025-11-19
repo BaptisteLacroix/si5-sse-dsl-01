@@ -98,13 +98,68 @@ long `+brick.name+`LastDebounceTime = 0;
 					digitalWrite(`+action.actuator.ref?.outputPin+`,`+action.value.value+`);`)
 	}
 
+/**
+ * Compiles a transition into Arduino condition checking code with debouncing.
+ * This simplified version handles flat lists of conditions with 'and'/'or' operators.
+ * 
+ * @param transition - The transition to compile
+ * @param fileNode - The composite generator node to append code to
+ * 
+ * @example
+ * Given: button1 is HIGH and button2 is HIGH => on
+ * Generates:
+ * ```cpp
+ * if( (digitalRead(8) == HIGH && digitalRead(10) == HIGH) && 
+ *     (millis() - button1LastDebounceTime > debounce && 
+ *      millis() - button2LastDebounceTime > debounce) ) {
+ *   button1LastDebounceTime = millis();
+ *   button2LastDebounceTime = millis();
+ *   currentState = on;
+ * }
+ * ```
+ */
 	function compileTransition(transition: Transition, fileNode:CompositeGeneratorNode) {
+		// Collect all unique sensors from conditions
+		const sensors: Sensor[] = [];
+		for (const condition of transition.conditions) {
+			if (condition.sensor?.ref && !sensors.includes(condition.sensor.ref)) {
+				sensors.push(condition.sensor.ref);
+			}
+		}
+		
+		// Build the condition expression
+		let conditionCode = '';
+		for (let i = 0; i < transition.conditions.length; i++) {
+			const condition = transition.conditions[i];
+			const condStr = `digitalRead(${condition.sensor.ref?.inputPin}) == ${condition.value.value}`;
+			
+			if (i === 0) {
+				conditionCode = condStr;
+			} else {
+				const operator = transition.operator[i - 1] === 'and' ? '&&' : '||';
+				conditionCode += ` ${operator} ${condStr}`;
+			}
+		}
+		
+		// Build debounce checks
+		const debounceChecks = sensors.map(sensor => 
+			`millis() - ${sensor.name}LastDebounceTime > debounce`
+		).join(' && ');
+		
+		// Generate the complete transition code
 		fileNode.append(`
-		 			`+transition.sensor.ref?.name+`BounceGuard = millis() - `+transition.sensor.ref?.name+`LastDebounceTime > debounce;
-					if( digitalRead(`+transition.sensor.ref?.inputPin+`) == `+transition.value.value+` && `+transition.sensor.ref?.name+`BounceGuard) {
-						`+transition.sensor.ref?.name+`LastDebounceTime = millis();
-						currentState = `+transition.next.ref?.name+`;
+					if( (${conditionCode}) && (${debounceChecks}) ) {`);
+		
+		// Update debounce times for all sensors
+		for (const sensor of sensors) {
+			fileNode.append(`
+						${sensor.name}LastDebounceTime = millis();`);
+		}
+		
+		// Change state
+		fileNode.append(`
+						currentState = ${transition.next.ref?.name};
 					}
-		`)
+		`);
 	}
 

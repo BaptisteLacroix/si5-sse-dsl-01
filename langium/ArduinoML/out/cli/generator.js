@@ -86,13 +86,61 @@ function compileAction(action, fileNode) {
     fileNode.append(`
 					digitalWrite(` + ((_a = action.actuator.ref) === null || _a === void 0 ? void 0 : _a.outputPin) + `,` + action.value.value + `);`);
 }
+/**
+ * Compiles a transition into Arduino condition checking code with debouncing.
+ * This simplified version handles flat lists of conditions with 'and'/'or' operators.
+ *
+ * @param transition - The transition to compile
+ * @param fileNode - The composite generator node to append code to
+ *
+ * @example
+ * Given: button1 is HIGH and button2 is HIGH => on
+ * Generates:
+ * ```cpp
+ * if( (digitalRead(8) == HIGH && digitalRead(10) == HIGH) &&
+ *     (millis() - button1LastDebounceTime > debounce &&
+ *      millis() - button2LastDebounceTime > debounce) ) {
+ *   button1LastDebounceTime = millis();
+ *   button2LastDebounceTime = millis();
+ *   currentState = on;
+ * }
+ * ```
+ */
 function compileTransition(transition, fileNode) {
-    var _a, _b, _c, _d, _e, _f;
+    var _a, _b, _c;
+    // Collect all unique sensors from conditions
+    const sensors = [];
+    for (const condition of transition.conditions) {
+        if (((_a = condition.sensor) === null || _a === void 0 ? void 0 : _a.ref) && !sensors.includes(condition.sensor.ref)) {
+            sensors.push(condition.sensor.ref);
+        }
+    }
+    // Build the condition expression
+    let conditionCode = '';
+    for (let i = 0; i < transition.conditions.length; i++) {
+        const condition = transition.conditions[i];
+        const condStr = `digitalRead(${(_b = condition.sensor.ref) === null || _b === void 0 ? void 0 : _b.inputPin}) == ${condition.value.value}`;
+        if (i === 0) {
+            conditionCode = condStr;
+        }
+        else {
+            const operator = transition.operator[i - 1] === 'and' ? '&&' : '||';
+            conditionCode += ` ${operator} ${condStr}`;
+        }
+    }
+    // Build debounce checks
+    const debounceChecks = sensors.map(sensor => `millis() - ${sensor.name}LastDebounceTime > debounce`).join(' && ');
+    // Generate the complete transition code
     fileNode.append(`
-		 			` + ((_a = transition.sensor.ref) === null || _a === void 0 ? void 0 : _a.name) + `BounceGuard = millis() - ` + ((_b = transition.sensor.ref) === null || _b === void 0 ? void 0 : _b.name) + `LastDebounceTime > debounce;
-					if( digitalRead(` + ((_c = transition.sensor.ref) === null || _c === void 0 ? void 0 : _c.inputPin) + `) == ` + transition.value.value + ` && ` + ((_d = transition.sensor.ref) === null || _d === void 0 ? void 0 : _d.name) + `BounceGuard) {
-						` + ((_e = transition.sensor.ref) === null || _e === void 0 ? void 0 : _e.name) + `LastDebounceTime = millis();
-						currentState = ` + ((_f = transition.next.ref) === null || _f === void 0 ? void 0 : _f.name) + `;
+					if( (${conditionCode}) && (${debounceChecks}) ) {`);
+    // Update debounce times for all sensors
+    for (const sensor of sensors) {
+        fileNode.append(`
+						${sensor.name}LastDebounceTime = millis();`);
+    }
+    // Change state
+    fileNode.append(`
+						currentState = ${(_c = transition.next.ref) === null || _c === void 0 ? void 0 : _c.name};
 					}
 		`);
 }
