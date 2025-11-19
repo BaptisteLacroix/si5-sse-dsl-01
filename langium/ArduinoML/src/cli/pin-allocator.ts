@@ -21,7 +21,7 @@ export class PinAllocator {
     private static readonly DIGITAL_PINS = [8, 9, 10, 11, 12];
     
     // PWM pins that support analog output
-    private static readonly PWM_PINS = [1, 2, 3, 4];
+    private static readonly PWM_PINS = [8, 9, 10, 11, 12];
     
     // Analog input pins (A0-A5)
     private static readonly ANALOG_INPUT_PINS = [1, 2, 3, 4, 5]; // A0-A5 as digital equivalents

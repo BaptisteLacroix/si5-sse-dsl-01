@@ -116,7 +116,7 @@ exports.PinAllocator = PinAllocator;
 // Available digital pins (excluding serial pins 0-1)
 PinAllocator.DIGITAL_PINS = [8, 9, 10, 11, 12];
 // PWM pins that support analog output
-PinAllocator.PWM_PINS = [1, 2, 3, 4];
+PinAllocator.PWM_PINS = [8, 9, 10, 11, 12];
 // Analog input pins (A0-A5)
 PinAllocator.ANALOG_INPUT_PINS = [1, 2, 3, 4, 5]; // A0-A5 as digital equivalents
 // Pins reserved for LCD (if LCD is present)
