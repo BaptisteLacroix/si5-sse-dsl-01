@@ -1,15 +1,21 @@
-app RedButton initial state off {
-	bricks
-		Actuator red_led : 12
-		Sensor button : 8
+app ActuatorCheck initial state init {
+    bricks
+        Actuator led : 12
+        Sensor button : 8
 
-	states
-		off {
-			red_led <= LOW
-			button is HIGH => on
-		}
-		on {
-			red_led <= HIGH
-			button is LOW => off
-		}
+    states
+        init {
+            led <= LOW
+            led is LOW => waiting
+        }
+        waiting {
+            button is HIGH => turnOn
+        }
+        turnOn {
+            led <= HIGH
+            led is HIGH => done
+        }
+        done {
+            button is HIGH => init
+        }
 }

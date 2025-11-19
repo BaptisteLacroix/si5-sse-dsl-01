@@ -77,8 +77,8 @@ class ArduinoMlAstReflection extends langium_1.AbstractAstReflection {
             case 'Transition:next': {
                 return exports.State;
             }
-            case 'Condition:sensor': {
-                return exports.Sensor;
+            case 'Condition:brick': {
+                return exports.Brick;
             }
             default: {
                 throw new Error(`${referenceId} is not a valid reference id.`);

@@ -57,7 +57,7 @@ export function isApp(item: unknown): item is App {
 export interface Condition extends AstNode {
     readonly $container: Transition;
     readonly $type: 'Condition';
-    sensor: Reference<Sensor>
+    brick: Reference<Brick>
     value: Signal
 }
 
@@ -160,8 +160,8 @@ export class ArduinoMlAstReflection extends AbstractAstReflection {
             case 'Transition:next': {
                 return State;
             }
-            case 'Condition:sensor': {
-                return Sensor;
+            case 'Condition:brick': {
+                return Brick;
             }
             default: {
                 throw new Error(`${referenceId} is not a valid reference id.`);

@@ -107,19 +107,30 @@ function compileAction(action, fileNode) {
  * ```
  */
 function compileTransition(transition, fileNode) {
-    var _a, _b, _c;
-    // Collect all unique sensors from conditions
+    var _a, _b;
+    // Collect all unique sensors from conditions (only sensors need debouncing)
     const sensors = [];
     for (const condition of transition.conditions) {
-        if (((_a = condition.sensor) === null || _a === void 0 ? void 0 : _a.ref) && !sensors.includes(condition.sensor.ref)) {
-            sensors.push(condition.sensor.ref);
+        const brick = (_a = condition.brick) === null || _a === void 0 ? void 0 : _a.ref;
+        if (brick && 'inputPin' in brick && !sensors.includes(brick)) {
+            sensors.push(brick);
         }
     }
     // Build the condition expression
     let conditionCode = '';
     for (let i = 0; i < transition.conditions.length; i++) {
         const condition = transition.conditions[i];
-        const condStr = `digitalRead(${(_b = condition.sensor.ref) === null || _b === void 0 ? void 0 : _b.inputPin}) == ${condition.value.value}`;
+        const brick = condition.brick.ref;
+        // Generate condition based on brick type
+        let condStr = '';
+        if (brick && 'inputPin' in brick) {
+            // Sensor
+            condStr = `digitalRead(${brick.inputPin}) == ${condition.value.value}`;
+        }
+        else if (brick && 'outputPin' in brick) {
+            // Actuator
+            condStr = `digitalRead(${brick.outputPin}) == ${condition.value.value}`;
+        }
         if (i === 0) {
             conditionCode = condStr;
         }
@@ -128,19 +139,23 @@ function compileTransition(transition, fileNode) {
             conditionCode += ` ${operator} ${condStr}`;
         }
     }
-    // Build debounce checks
-    const debounceChecks = sensors.map(sensor => `millis() - ${sensor.name}LastDebounceTime > debounce`).join(' && ');
+    // Build debounce checks only for sensors
+    let debounceCheck = '';
+    if (sensors.length > 0) {
+        const debounceChecks = sensors.map(sensor => `millis() - ${sensor.name}LastDebounceTime > debounce`).join(' && ');
+        debounceCheck = ` && (${debounceChecks})`;
+    }
     // Generate the complete transition code
     fileNode.append(`
-					if( (${conditionCode}) && (${debounceChecks}) ) {`);
-    // Update debounce times for all sensors
+					if( (${conditionCode})${debounceCheck} ) {`);
+    // Update debounce times only for sensors
     for (const sensor of sensors) {
         fileNode.append(`
 						${sensor.name}LastDebounceTime = millis();`);
     }
     // Change state
     fileNode.append(`
-						currentState = ${(_c = transition.next.ref) === null || _c === void 0 ? void 0 : _c.name};
+						currentState = ${(_b = transition.next.ref) === null || _b === void 0 ? void 0 : _b.name};
 					}
 		`);
 }

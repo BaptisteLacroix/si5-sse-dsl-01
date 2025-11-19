@@ -304,18 +304,6 @@ export const ArduinoMlGrammar = (): Grammar => loadedArduinoMlGrammar ?? (loaded
                 "$ref": "#/rules@5"
               },
               "arguments": []
-            }
-          },
-          {
-            "$type": "Assignment",
-            "feature": "actions",
-            "operator": "+=",
-            "terminal": {
-              "$type": "RuleCall",
-              "rule": {
-                "$ref": "#/rules@5"
-              },
-              "arguments": []
             },
             "cardinality": "*"
           },
@@ -488,12 +476,12 @@ export const ArduinoMlGrammar = (): Grammar => loadedArduinoMlGrammar ?? (loaded
         "elements": [
           {
             "$type": "Assignment",
-            "feature": "sensor",
+            "feature": "brick",
             "operator": "=",
             "terminal": {
               "$type": "CrossReference",
               "type": {
-                "$ref": "#/rules@3"
+                "$ref": "#/rules@1"
               },
               "terminal": {
                 "$type": "RuleCall",
