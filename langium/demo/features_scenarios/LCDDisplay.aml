@@ -1,0 +1,18 @@
+app LCDDisplay initial state off {
+	bricks
+		Actuator led : 13
+		Sensor button : 9
+		LCD screen
+
+	states
+	off {
+		led <= LOW
+		screen << "LED is OFF"
+		button is HIGH => on
+	}
+	on {
+		led <= HIGH
+		screen << "LED: " + led status
+		button is HIGH => off
+	}
+}

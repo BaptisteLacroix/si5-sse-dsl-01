@@ -6,12 +6,20 @@
 /* eslint-disable */
 import { AstNode, AbstractAstReflection, Reference, ReferenceInfo, TypeMetaData } from 'langium';
 
-export type Brick = Actuator | Sensor;
+export type Brick = Actuator | LCD | Sensor;
 
 export const Brick = 'Brick';
 
 export function isBrick(item: unknown): item is Brick {
     return reflection.isInstance(item, Brick);
+}
+
+export type MessagePart = BrickStatusPart | ConstantPart;
+
+export const MessagePart = 'MessagePart';
+
+export function isMessagePart(item: unknown): item is MessagePart {
+    return reflection.isInstance(item, MessagePart);
 }
 
 export interface Action extends AstNode {
@@ -54,6 +62,18 @@ export function isApp(item: unknown): item is App {
     return reflection.isInstance(item, App);
 }
 
+export interface BrickStatusPart extends AstNode {
+    readonly $container: LCDAction;
+    readonly $type: 'BrickStatusPart';
+    brick: Reference<Brick>
+}
+
+export const BrickStatusPart = 'BrickStatusPart';
+
+export function isBrickStatusPart(item: unknown): item is BrickStatusPart {
+    return reflection.isInstance(item, BrickStatusPart);
+}
+
 export interface Condition extends AstNode {
     readonly $container: Transition;
     readonly $type: 'Condition';
@@ -65,6 +85,43 @@ export const Condition = 'Condition';
 
 export function isCondition(item: unknown): item is Condition {
     return reflection.isInstance(item, Condition);
+}
+
+export interface ConstantPart extends AstNode {
+    readonly $container: LCDAction;
+    readonly $type: 'ConstantPart';
+    text: string
+}
+
+export const ConstantPart = 'ConstantPart';
+
+export function isConstantPart(item: unknown): item is ConstantPart {
+    return reflection.isInstance(item, ConstantPart);
+}
+
+export interface LCD extends AstNode {
+    readonly $container: App;
+    readonly $type: 'LCD';
+    name: string
+}
+
+export const LCD = 'LCD';
+
+export function isLCD(item: unknown): item is LCD {
+    return reflection.isInstance(item, LCD);
+}
+
+export interface LCDAction extends AstNode {
+    readonly $container: State;
+    readonly $type: 'LCDAction';
+    lcd: Reference<LCD>
+    parts: Array<MessagePart>
+}
+
+export const LCDAction = 'LCDAction';
+
+export function isLCDAction(item: unknown): item is LCDAction {
+    return reflection.isInstance(item, LCDAction);
 }
 
 export interface Sensor extends AstNode {
@@ -95,7 +152,7 @@ export function isSignal(item: unknown): item is Signal {
 export interface State extends AstNode {
     readonly $container: App;
     readonly $type: 'State';
-    actions: Array<Action>
+    actions: Array<Action | LCDAction>
     name: string
     transition: Transition
 }
@@ -125,7 +182,12 @@ export interface ArduinoMlAstType {
     Actuator: Actuator
     App: App
     Brick: Brick
+    BrickStatusPart: BrickStatusPart
     Condition: Condition
+    ConstantPart: ConstantPart
+    LCD: LCD
+    LCDAction: LCDAction
+    MessagePart: MessagePart
     Sensor: Sensor
     Signal: Signal
     State: State
@@ -135,14 +197,19 @@ export interface ArduinoMlAstType {
 export class ArduinoMlAstReflection extends AbstractAstReflection {
 
     getAllTypes(): string[] {
-        return ['Action', 'Actuator', 'App', 'Brick', 'Condition', 'Sensor', 'Signal', 'State', 'Transition'];
+        return ['Action', 'Actuator', 'App', 'Brick', 'BrickStatusPart', 'Condition', 'ConstantPart', 'LCD', 'LCDAction', 'MessagePart', 'Sensor', 'Signal', 'State', 'Transition'];
     }
 
     protected override computeIsSubtype(subtype: string, supertype: string): boolean {
         switch (subtype) {
             case Actuator:
+            case LCD:
             case Sensor: {
                 return this.isSubtype(Brick, supertype);
+            }
+            case BrickStatusPart:
+            case ConstantPart: {
+                return this.isSubtype(MessagePart, supertype);
             }
             default: {
                 return false;
@@ -160,8 +227,14 @@ export class ArduinoMlAstReflection extends AbstractAstReflection {
             case 'Transition:next': {
                 return State;
             }
+            case 'BrickStatusPart:brick': {
+                return Brick;
+            }
             case 'Condition:sensor': {
                 return Sensor;
+            }
+            case 'LCDAction:lcd': {
+                return LCD;
             }
             default: {
                 throw new Error(`${referenceId} is not a valid reference id.`);
@@ -177,6 +250,14 @@ export class ArduinoMlAstReflection extends AbstractAstReflection {
                     mandatory: [
                         { name: 'bricks', type: 'array' },
                         { name: 'states', type: 'array' }
+                    ]
+                };
+            }
+            case 'LCDAction': {
+                return {
+                    name: 'LCDAction',
+                    mandatory: [
+                        { name: 'parts', type: 'array' }
                     ]
                 };
             }

@@ -13,7 +13,7 @@ entry App:
 	'}';
 
 Brick :
-	(Actuator | Sensor);
+	(Actuator | Sensor | LCD);
 
 Actuator:
 	{infer Actuator}
@@ -22,17 +22,33 @@ Actuator:
 Sensor :
 	{infer Sensor}
 	'Sensor'  name=ID ':' inputPin=INT;
+
+LCD:
+	{infer LCD}
+	'LCD' name=ID;
 	
 State :
 	name=ID '{'
-		actions+=Action
-		(actions+=Action)* 
+		actions+=(Action | LCDAction)
+		(actions+=(Action | LCDAction))* 
 		transition=Transition
 	'}';
 
 
 Action :
 	actuator=[Actuator:ID] '<=' value=Signal;
+
+LCDAction :
+	lcd=[LCD:ID] '<<' parts+=MessagePart ('+' parts+=MessagePart)*;
+
+MessagePart:
+	ConstantPart | BrickStatusPart;
+
+ConstantPart:
+	text=STRING;
+
+BrickStatusPart:
+	brick=[Brick:ID] 'status';
 
 Transition:
 	conditions+=Condition (operator+=('and' | 'or') conditions+=Condition)* '=>' next=[State:ID];

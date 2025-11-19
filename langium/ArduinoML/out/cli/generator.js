@@ -7,6 +7,7 @@ exports.generateInoFile = void 0;
 const fs_1 = __importDefault(require("fs"));
 const langium_1 = require("langium");
 const path_1 = __importDefault(require("path"));
+const ast_1 = require("../language-server/generated/ast");
 const cli_util_1 = require("./cli-util");
 function generateInoFile(app, filePath, destination) {
     const data = (0, cli_util_1.extractDestinationAndName)(filePath, destination);
@@ -22,6 +23,16 @@ function generateInoFile(app, filePath, destination) {
 exports.generateInoFile = generateInoFile;
 function compile(app, fileNode) {
     var _a;
+    // Check if app uses LCD
+    const hasLCD = app.bricks.some(brick => !('inputPin' in brick) && !('outputPin' in brick));
+    if (hasLCD) {
+        fileNode.append(`
+#include <LiquidCrystal.h>
+
+// LCD pins: RS, E, D4, D5, D6, D7
+LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+`, langium_1.NL);
+    }
     fileNode.append(`
 //Wiring code generated from an ArduinoML model
 // Application name: ` + app.name + `
@@ -41,13 +52,20 @@ long ` + brick.name + `LastDebounceTime = 0;
     }
     fileNode.append(`
 	void setup(){`);
+    // Initialize LCD if present
+    if (hasLCD) {
+        fileNode.append(`
+		lcd.begin(16, 2); // Initialize LCD 16x2
+		lcd.clear();`);
+    }
     for (const brick of app.bricks) {
         if ("inputPin" in brick) {
             compileSensor(brick, fileNode);
         }
-        else {
+        else if ("outputPin" in brick) {
             compileActuator(brick, fileNode);
         }
+        // LCD bricks don't need pinMode setup
     }
     fileNode.append(`
 	}
@@ -73,7 +91,12 @@ function compileState(state, fileNode) {
     fileNode.append(`
 				case ` + state.name + `:`);
     for (const action of state.actions) {
-        compileAction(action, fileNode);
+        if ((0, ast_1.isAction)(action)) {
+            compileAction(action, fileNode);
+        }
+        else if ((0, ast_1.isLCDAction)(action)) {
+            compileLCDAction(action, fileNode);
+        }
     }
     if (state.transition !== null) {
         compileTransition(state.transition, fileNode);
@@ -143,5 +166,31 @@ function compileTransition(transition, fileNode) {
 						currentState = ${(_c = transition.next.ref) === null || _c === void 0 ? void 0 : _c.name};
 					}
 		`);
+}
+function compileLCDAction(lcdAction, fileNode) {
+    fileNode.append(`
+					lcd.clear();
+					lcd.setCursor(0, 0);`);
+    for (const part of lcdAction.parts) {
+        if ('text' in part) {
+            // ConstantPart - STRING terminal includes quotes
+            fileNode.append(`
+					lcd.print(` + part.text + `);`);
+        }
+        else {
+            // BrickStatusPart
+            const brick = part.brick.ref;
+            if (brick && 'inputPin' in brick) {
+                // Sensor
+                fileNode.append(`
+					lcd.print(digitalRead(` + brick.inputPin + `) == HIGH ? "HIGH" : "LOW");`);
+            }
+            else if (brick && 'outputPin' in brick) {
+                // Actuator
+                fileNode.append(`
+					lcd.print(digitalRead(` + brick.outputPin + `) == HIGH ? "ON" : "OFF");`);
+            }
+        }
+    }
 }
 //# sourceMappingURL=generator.js.map

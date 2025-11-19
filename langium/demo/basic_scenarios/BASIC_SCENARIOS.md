@@ -1,7 +1,7 @@
 ## Basic Scenarios
 
 ### Scenario 1: Very Simple Alarm
->>> Pushing a button activates a LED and a buzzer. Releasing the button switches
+> Pushing a button activates a LED and a buzzer. Releasing the button switches
 the actuators off
 ```
 app RedButton initial state off {
@@ -24,7 +24,7 @@ app RedButton initial state off {
 ```
 
 ### Scenario 2: Dual-Check Alarm
->>> It will trigger a buzzer if and only if two buttons are pushed at the very same
+> It will trigger a buzzer if and only if two buttons are pushed at the very same
 time. Releasing at least one of the button stop the sound.
 
 ```
@@ -46,7 +46,7 @@ app RedButton initial state off {
 ```
 
 ### Scenario 3: State-Based Alarm
->>> Pushing the button once switches the system in a mode where the LED is
+> Pushing the button once switches the system in a mode where the LED is
 switched on. Pushing it again switches it off.
 ```
 app RedButton initial state off {
@@ -67,7 +67,7 @@ app RedButton initial state off {
 ```
 
 ### Scenario 4: Multi-State Alarm
->>> Pushing the button starts the buzz noise. Pushing it again stop the buzzer and
+> Pushing the button starts the buzz noise. Pushing it again stop the buzzer and
 switch the LED on. Pushing it again switch the LED off, and makes the system ready to make noise
 again after one push, and so on.
 ```

@@ -4,7 +4,7 @@
  * DO NOT EDIT MANUALLY!
  ******************************************************************************/
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.reflection = exports.ArduinoMlAstReflection = exports.isTransition = exports.Transition = exports.isState = exports.State = exports.isSignal = exports.Signal = exports.isSensor = exports.Sensor = exports.isCondition = exports.Condition = exports.isApp = exports.App = exports.isActuator = exports.Actuator = exports.isAction = exports.Action = exports.isBrick = exports.Brick = void 0;
+exports.reflection = exports.ArduinoMlAstReflection = exports.isTransition = exports.Transition = exports.isState = exports.State = exports.isSignal = exports.Signal = exports.isSensor = exports.Sensor = exports.isLCDAction = exports.LCDAction = exports.isLCD = exports.LCD = exports.isConstantPart = exports.ConstantPart = exports.isCondition = exports.Condition = exports.isBrickStatusPart = exports.BrickStatusPart = exports.isApp = exports.App = exports.isActuator = exports.Actuator = exports.isAction = exports.Action = exports.isMessagePart = exports.MessagePart = exports.isBrick = exports.Brick = void 0;
 /* eslint-disable */
 const langium_1 = require("langium");
 exports.Brick = 'Brick';
@@ -12,6 +12,11 @@ function isBrick(item) {
     return exports.reflection.isInstance(item, exports.Brick);
 }
 exports.isBrick = isBrick;
+exports.MessagePart = 'MessagePart';
+function isMessagePart(item) {
+    return exports.reflection.isInstance(item, exports.MessagePart);
+}
+exports.isMessagePart = isMessagePart;
 exports.Action = 'Action';
 function isAction(item) {
     return exports.reflection.isInstance(item, exports.Action);
@@ -27,11 +32,31 @@ function isApp(item) {
     return exports.reflection.isInstance(item, exports.App);
 }
 exports.isApp = isApp;
+exports.BrickStatusPart = 'BrickStatusPart';
+function isBrickStatusPart(item) {
+    return exports.reflection.isInstance(item, exports.BrickStatusPart);
+}
+exports.isBrickStatusPart = isBrickStatusPart;
 exports.Condition = 'Condition';
 function isCondition(item) {
     return exports.reflection.isInstance(item, exports.Condition);
 }
 exports.isCondition = isCondition;
+exports.ConstantPart = 'ConstantPart';
+function isConstantPart(item) {
+    return exports.reflection.isInstance(item, exports.ConstantPart);
+}
+exports.isConstantPart = isConstantPart;
+exports.LCD = 'LCD';
+function isLCD(item) {
+    return exports.reflection.isInstance(item, exports.LCD);
+}
+exports.isLCD = isLCD;
+exports.LCDAction = 'LCDAction';
+function isLCDAction(item) {
+    return exports.reflection.isInstance(item, exports.LCDAction);
+}
+exports.isLCDAction = isLCDAction;
 exports.Sensor = 'Sensor';
 function isSensor(item) {
     return exports.reflection.isInstance(item, exports.Sensor);
@@ -54,13 +79,18 @@ function isTransition(item) {
 exports.isTransition = isTransition;
 class ArduinoMlAstReflection extends langium_1.AbstractAstReflection {
     getAllTypes() {
-        return ['Action', 'Actuator', 'App', 'Brick', 'Condition', 'Sensor', 'Signal', 'State', 'Transition'];
+        return ['Action', 'Actuator', 'App', 'Brick', 'BrickStatusPart', 'Condition', 'ConstantPart', 'LCD', 'LCDAction', 'MessagePart', 'Sensor', 'Signal', 'State', 'Transition'];
     }
     computeIsSubtype(subtype, supertype) {
         switch (subtype) {
             case exports.Actuator:
+            case exports.LCD:
             case exports.Sensor: {
                 return this.isSubtype(exports.Brick, supertype);
+            }
+            case exports.BrickStatusPart:
+            case exports.ConstantPart: {
+                return this.isSubtype(exports.MessagePart, supertype);
             }
             default: {
                 return false;
@@ -77,8 +107,14 @@ class ArduinoMlAstReflection extends langium_1.AbstractAstReflection {
             case 'Transition:next': {
                 return exports.State;
             }
+            case 'BrickStatusPart:brick': {
+                return exports.Brick;
+            }
             case 'Condition:sensor': {
                 return exports.Sensor;
+            }
+            case 'LCDAction:lcd': {
+                return exports.LCD;
             }
             default: {
                 throw new Error(`${referenceId} is not a valid reference id.`);
@@ -93,6 +129,14 @@ class ArduinoMlAstReflection extends langium_1.AbstractAstReflection {
                     mandatory: [
                         { name: 'bricks', type: 'array' },
                         { name: 'states', type: 'array' }
+                    ]
+                };
+            }
+            case 'LCDAction': {
+                return {
+                    name: 'LCDAction',
+                    mandatory: [
+                        { name: 'parts', type: 'array' }
                     ]
                 };
             }
