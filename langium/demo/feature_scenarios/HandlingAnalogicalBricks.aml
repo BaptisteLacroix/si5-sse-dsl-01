@@ -1,0 +1,19 @@
+// Fire detection system using temperature sensor (potentiometer)
+// When temperature exceeds 57°C (threshold ~300 on analog scale 0-1023), buzzer sounds
+// Potentiometer simulates temperature sensor: rotate to increase "temperature"
+
+app FireDetection initial state monitoring {
+    bricks
+        AnalogSensor tempSensor : 1
+        Actuator buzzer : 9
+
+    states
+        monitoring {
+            buzzer <= LOW
+            tempSensor > 300 => alarm
+        }
+        alarm {
+            buzzer <= HIGH
+            tempSensor <= 300 => monitoring
+        }
+}

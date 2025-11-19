@@ -6,7 +6,7 @@
 /* eslint-disable */
 import { AstNode, AbstractAstReflection, Reference, ReferenceInfo, TypeMetaData } from 'langium';
 
-export type Brick = Actuator | Sensor;
+export type Brick = Actuator | AnalogActuator | AnalogSensor | Sensor;
 
 export const Brick = 'Brick';
 
@@ -17,8 +17,10 @@ export function isBrick(item: unknown): item is Brick {
 export interface Action extends AstNode {
     readonly $container: State;
     readonly $type: 'Action';
-    actuator: Reference<Actuator>
-    value: Signal
+    actuator?: Reference<Actuator>
+    analogActuator?: Reference<AnalogActuator>
+    analogValue?: AnalogValue
+    value?: Signal
 }
 
 export const Action = 'Action';
@@ -40,6 +42,45 @@ export function isActuator(item: unknown): item is Actuator {
     return reflection.isInstance(item, Actuator);
 }
 
+export interface AnalogActuator extends AstNode {
+    readonly $container: App;
+    readonly $type: 'AnalogActuator';
+    name: string
+    outputPin: number
+}
+
+export const AnalogActuator = 'AnalogActuator';
+
+export function isAnalogActuator(item: unknown): item is AnalogActuator {
+    return reflection.isInstance(item, AnalogActuator);
+}
+
+export interface AnalogSensor extends AstNode {
+    readonly $container: App;
+    readonly $type: 'AnalogSensor';
+    inputPin: number
+    name: string
+}
+
+export const AnalogSensor = 'AnalogSensor';
+
+export function isAnalogSensor(item: unknown): item is AnalogSensor {
+    return reflection.isInstance(item, AnalogSensor);
+}
+
+export interface AnalogValue extends AstNode {
+    readonly $container: Action;
+    readonly $type: 'AnalogValue';
+    intValue?: number
+    sensorValue?: Reference<AnalogSensor>
+}
+
+export const AnalogValue = 'AnalogValue';
+
+export function isAnalogValue(item: unknown): item is AnalogValue {
+    return reflection.isInstance(item, AnalogValue);
+}
+
 export interface App extends AstNode {
     readonly $type: 'App';
     bricks: Array<Brick>
@@ -57,8 +98,11 @@ export function isApp(item: unknown): item is App {
 export interface Condition extends AstNode {
     readonly $container: Transition;
     readonly $type: 'Condition';
-    brick: Reference<Brick>
-    value: Signal
+    analogBrick?: Reference<AnalogSensor>
+    brick?: Reference<Brick>
+    operator?: '!=' | '<' | '<=' | '==' | '>' | '>='
+    threshold?: number
+    value?: Signal
 }
 
 export const Condition = 'Condition';
@@ -123,6 +167,9 @@ export function isTransition(item: unknown): item is Transition {
 export interface ArduinoMlAstType {
     Action: Action
     Actuator: Actuator
+    AnalogActuator: AnalogActuator
+    AnalogSensor: AnalogSensor
+    AnalogValue: AnalogValue
     App: App
     Brick: Brick
     Condition: Condition
@@ -135,12 +182,14 @@ export interface ArduinoMlAstType {
 export class ArduinoMlAstReflection extends AbstractAstReflection {
 
     getAllTypes(): string[] {
-        return ['Action', 'Actuator', 'App', 'Brick', 'Condition', 'Sensor', 'Signal', 'State', 'Transition'];
+        return ['Action', 'Actuator', 'AnalogActuator', 'AnalogSensor', 'AnalogValue', 'App', 'Brick', 'Condition', 'Sensor', 'Signal', 'State', 'Transition'];
     }
 
     protected override computeIsSubtype(subtype: string, supertype: string): boolean {
         switch (subtype) {
             case Actuator:
+            case AnalogActuator:
+            case AnalogSensor:
             case Sensor: {
                 return this.isSubtype(Brick, supertype);
             }
@@ -155,6 +204,13 @@ export class ArduinoMlAstReflection extends AbstractAstReflection {
         switch (referenceId) {
             case 'Action:actuator': {
                 return Actuator;
+            }
+            case 'Action:analogActuator': {
+                return AnalogActuator;
+            }
+            case 'AnalogValue:sensorValue':
+            case 'Condition:analogBrick': {
+                return AnalogSensor;
             }
             case 'App:initial':
             case 'Transition:next': {

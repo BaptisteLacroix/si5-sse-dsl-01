@@ -24,29 +24,54 @@ function compile(app, fileNode) {
     var _a;
     fileNode.append(`
 //Wiring code generated from an ArduinoML model
-// Application name: ` + app.name + `
+// Application name: ` +
+        app.name +
+        `
 
 long debounce = 200;
-enum STATE {` + app.states.map(s => s.name).join(', ') + `};
+enum STATE {` +
+        app.states.map((s) => s.name).join(', ') +
+        `};
 
-STATE currentState = ` + ((_a = app.initial.ref) === null || _a === void 0 ? void 0 : _a.name) + `;`, langium_1.NL);
+STATE currentState = ` +
+        ((_a = app.initial.ref) === null || _a === void 0 ? void 0 : _a.name) +
+        `;`, langium_1.NL);
     for (const brick of app.bricks) {
-        if ("inputPin" in brick) {
-            fileNode.append(`
-bool ` + brick.name + `BounceGuard = false;
-long ` + brick.name + `LastDebounceTime = 0;
+        if ('inputPin' in brick) {
+            if (brick.$type === 'AnalogSensor') {
+                // Analog sensors don't need debounce guards
+            }
+            else {
+                fileNode.append(`
+bool ` +
+                    brick.name +
+                    `BounceGuard = false;
+long ` +
+                    brick.name +
+                    `LastDebounceTime = 0;
 
-            `, langium_1.NL);
+                `, langium_1.NL);
+            }
         }
     }
     fileNode.append(`
 	void setup(){`);
     for (const brick of app.bricks) {
-        if ("inputPin" in brick) {
-            compileSensor(brick, fileNode);
+        if ('inputPin' in brick) {
+            if (brick.$type === 'AnalogSensor') {
+                compileAnalogSensor(brick, fileNode);
+            }
+            else {
+                compileSensor(brick, fileNode);
+            }
         }
         else {
-            compileActuator(brick, fileNode);
+            if (brick.$type === 'AnalogActuator') {
+                compileAnalogActuator(brick, fileNode);
+            }
+            else {
+                compileActuator(brick, fileNode);
+            }
         }
     }
     fileNode.append(`
@@ -63,15 +88,41 @@ long ` + brick.name + `LastDebounceTime = 0;
 }
 function compileActuator(actuator, fileNode) {
     fileNode.append(`
-		pinMode(` + actuator.outputPin + `, OUTPUT); // ` + actuator.name + ` [Actuator]`);
+		pinMode(` +
+        actuator.outputPin +
+        `, OUTPUT); // ` +
+        actuator.name +
+        ` [Actuator]`);
+}
+function compileAnalogActuator(actuator, fileNode) {
+    fileNode.append(`
+		pinMode(` +
+        actuator.outputPin +
+        `, OUTPUT); // ` +
+        actuator.name +
+        ` [AnalogActuator]`);
 }
 function compileSensor(sensor, fileNode) {
     fileNode.append(`
-		pinMode(` + sensor.inputPin + `, INPUT); // ` + sensor.name + ` [Sensor]`);
+		pinMode(` +
+        sensor.inputPin +
+        `, INPUT); // ` +
+        sensor.name +
+        ` [Sensor]`);
+}
+function compileAnalogSensor(sensor, fileNode) {
+    fileNode.append(`
+		pinMode(` +
+        sensor.inputPin +
+        `, INPUT); // ` +
+        sensor.name +
+        ` [AnalogSensor]`);
 }
 function compileState(state, fileNode) {
     fileNode.append(`
-				case ` + state.name + `:`);
+				case ` +
+        state.name +
+        `:`);
     for (const action of state.actions) {
         compileAction(action, fileNode);
     }
@@ -82,9 +133,37 @@ function compileState(state, fileNode) {
 				break;`);
 }
 function compileAction(action, fileNode) {
-    var _a;
-    fileNode.append(`
-					digitalWrite(` + ((_a = action.actuator.ref) === null || _a === void 0 ? void 0 : _a.outputPin) + `,` + action.value.value + `);`);
+    var _a, _b, _c, _d, _e;
+    if (action.actuator) {
+        // Digital actuator
+        fileNode.append(`
+					digitalWrite(` +
+            ((_a = action.actuator.ref) === null || _a === void 0 ? void 0 : _a.outputPin) +
+            `,` +
+            ((_b = action.value) === null || _b === void 0 ? void 0 : _b.value) +
+            `);`);
+    }
+    else if (action.analogActuator && action.analogValue) {
+        // Analog actuator
+        if (action.analogValue.intValue !== undefined) {
+            // Direct integer value
+            fileNode.append(`
+					analogWrite(` +
+                ((_c = action.analogActuator.ref) === null || _c === void 0 ? void 0 : _c.outputPin) +
+                `,` +
+                action.analogValue.intValue +
+                `);`);
+        }
+        else if (action.analogValue.sensorValue) {
+            // Value from another analog sensor
+            fileNode.append(`
+					analogWrite(` +
+                ((_d = action.analogActuator.ref) === null || _d === void 0 ? void 0 : _d.outputPin) +
+                `, analogRead(` +
+                ((_e = action.analogValue.sensorValue.ref) === null || _e === void 0 ? void 0 : _e.inputPin) +
+                `));`);
+        }
+    }
 }
 /**
  * Compiles a transition into Arduino condition checking code with debouncing.
@@ -107,29 +186,40 @@ function compileAction(action, fileNode) {
  * ```
  */
 function compileTransition(transition, fileNode) {
-    var _a, _b;
-    // Collect all unique sensors from conditions (only sensors need debouncing)
+    var _a, _b, _c;
+    // Collect all unique digital sensors from conditions (only digital sensors need debouncing)
     const sensors = [];
     for (const condition of transition.conditions) {
-        const brick = (_a = condition.brick) === null || _a === void 0 ? void 0 : _a.ref;
-        if (brick && 'inputPin' in brick && !sensors.includes(brick)) {
-            sensors.push(brick);
+        if (condition.brick) {
+            const brick = condition.brick.ref;
+            if (brick && brick.$type === 'Sensor' && !sensors.includes(brick)) {
+                sensors.push(brick);
+            }
         }
     }
     // Build the condition expression
     let conditionCode = '';
     for (let i = 0; i < transition.conditions.length; i++) {
         const condition = transition.conditions[i];
-        const brick = condition.brick.ref;
-        // Generate condition based on brick type
+        // Generate condition based on type
         let condStr = '';
-        if (brick && 'inputPin' in brick) {
-            // Sensor
-            condStr = `digitalRead(${brick.inputPin}) == ${condition.value.value}`;
+        if (condition.analogBrick &&
+            condition.operator &&
+            condition.threshold !== undefined) {
+            // Analog sensor with threshold comparison
+            const analogSensor = condition.analogBrick.ref;
+            condStr = `analogRead(${analogSensor === null || analogSensor === void 0 ? void 0 : analogSensor.inputPin}) ${condition.operator} ${condition.threshold}`;
         }
-        else if (brick && 'outputPin' in brick) {
-            // Actuator
-            condStr = `digitalRead(${brick.outputPin}) == ${condition.value.value}`;
+        else if (condition.brick) {
+            const brick = condition.brick.ref;
+            if (brick && 'inputPin' in brick) {
+                // Digital Sensor
+                condStr = `digitalRead(${brick.inputPin}) == ${(_a = condition.value) === null || _a === void 0 ? void 0 : _a.value}`;
+            }
+            else if (brick && 'outputPin' in brick) {
+                // Actuator
+                condStr = `digitalRead(${brick.outputPin}) == ${(_b = condition.value) === null || _b === void 0 ? void 0 : _b.value}`;
+            }
         }
         if (i === 0) {
             conditionCode = condStr;
@@ -139,23 +229,25 @@ function compileTransition(transition, fileNode) {
             conditionCode += ` ${operator} ${condStr}`;
         }
     }
-    // Build debounce checks only for sensors
+    // Build debounce checks only for digital sensors
     let debounceCheck = '';
     if (sensors.length > 0) {
-        const debounceChecks = sensors.map(sensor => `millis() - ${sensor.name}LastDebounceTime > debounce`).join(' && ');
+        const debounceChecks = sensors
+            .map((sensor) => `millis() - ${sensor.name}LastDebounceTime > debounce`)
+            .join(' && ');
         debounceCheck = ` && (${debounceChecks})`;
     }
     // Generate the complete transition code
     fileNode.append(`
 					if( (${conditionCode})${debounceCheck} ) {`);
-    // Update debounce times only for sensors
+    // Update debounce times only for digital sensors
     for (const sensor of sensors) {
         fileNode.append(`
 						${sensor.name}LastDebounceTime = millis();`);
     }
     // Change state
     fileNode.append(`
-						currentState = ${(_b = transition.next.ref) === null || _b === void 0 ? void 0 : _b.name};
+						currentState = ${(_c = transition.next.ref) === null || _c === void 0 ? void 0 : _c.name};
 					}
 		`);
 }
