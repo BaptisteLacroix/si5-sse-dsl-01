@@ -4,7 +4,7 @@ app RedButton initial state off {
         Actuator buzzer : 11
 		Sensor button1 : 8
 		Sensor button2 : 9
-	
+
 	states
 		off {
 			buzzer <= LOW

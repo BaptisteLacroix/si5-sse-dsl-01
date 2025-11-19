@@ -1,0 +1,23 @@
+app MultiStateAlarm initial state ready {
+	bricks
+		Actuator buzzer : 11
+		Actuator led : 12
+		Sensor button : 9
+		
+	states
+	ready {
+		buzzer <= LOW
+		led <= LOW
+		button is HIGH => buzzing
+	}
+	buzzing {
+		buzzer <= HIGH
+		led <= LOW
+		button is HIGH => led_on
+	}
+	led_on {
+		buzzer <= LOW
+		led <= HIGH
+		button is HIGH => ready
+	}
+}
