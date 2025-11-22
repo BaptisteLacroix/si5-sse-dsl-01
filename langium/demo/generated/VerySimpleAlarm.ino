@@ -18,25 +18,25 @@ long buttonLastDebounceTime = 0;
 		pinMode(8, INPUT); // button [Sensor]
 	}
 	void loop() {
-			switch(currentState){
+		switch(currentState){
 
 				case off:
 					digitalWrite(12,LOW);
 					digitalWrite(11,LOW);
-					if( (digitalRead(8) == HIGH) && (millis() - buttonLastDebounceTime > debounce) ) {
-						buttonLastDebounceTime = millis();
-						currentState = on;
-					}
-		
+			if( (digitalRead(8) == HIGH) && (millis() - buttonLastDebounceTime > debounce) ) {
+				buttonLastDebounceTime = millis();
+				currentState = on;
+			}
+	
 				break;
 				case on:
 					digitalWrite(12,HIGH);
 					digitalWrite(11,HIGH);
-					if( (digitalRead(8) == LOW) && (millis() - buttonLastDebounceTime > debounce) ) {
-						buttonLastDebounceTime = millis();
-						currentState = off;
-					}
-		
+			if( (digitalRead(8) == LOW) && (millis() - buttonLastDebounceTime > debounce) ) {
+				buttonLastDebounceTime = millis();
+				currentState = off;
+			}
+	
 				break;
 		}
 	}

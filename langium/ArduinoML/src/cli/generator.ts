@@ -76,11 +76,11 @@ long `+brick.name+`LastDebounceTime = 0;
     fileNode.append(`
 	}
 	void loop() {
-			switch(currentState){`,NL)
-			for(const state of app.states){
-				compileState(state, fileNode)
-            }
-	fileNode.append(`
+		switch(currentState){`,NL)
+		for(const state of app.states){
+			compileState(state, fileNode)
+		}
+fileNode.append(`
 		}
 	}
 	`,NL);
@@ -143,74 +143,88 @@ long `+brick.name+`LastDebounceTime = 0;
  * }
  * ```
  */
-	function compileTransition(transition: Transition, fileNode:CompositeGeneratorNode) {
-		// Collect all unique sensors from conditions
-		const sensors: Sensor[] = [];
-		for (const condition of transition.conditions) {
-			if (condition.sensor?.ref && !sensors.includes(condition.sensor.ref)) {
-				sensors.push(condition.sensor.ref);
-			}
+function compileTransition(transition: Transition, fileNode: CompositeGeneratorNode) {
+	// Collect all unique sensors from conditions (only sensors need debouncing)
+	const sensors: Sensor[] = [];
+	for (const condition of transition.conditions) {
+		const brick = condition.brick?.ref;
+		if (brick && 'inputPin' in brick && !sensors.includes(brick)) {
+			sensors.push(brick);
 		}
-		
-		// Build the condition expression
-		let conditionCode = '';
-		for (let i = 0; i < transition.conditions.length; i++) {
-			const condition = transition.conditions[i];
-			const condStr = `digitalRead(${condition.sensor.ref?.inputPin}) == ${condition.value.value}`;
-			
-			if (i === 0) {
-				conditionCode = condStr;
-			} else {
-				const operator = transition.operator[i - 1] === 'and' ? '&&' : '||';
-				conditionCode += ` ${operator} ${condStr}`;
-			}
+	}
+
+	// Build the condition expression
+	let conditionCode = '';
+	for (let i = 0; i < transition.conditions.length; i++) {
+		const condition = transition.conditions[i];
+		const brick = condition.brick.ref;
+
+		// Generate condition based on brick type
+		let condStr = '';
+		if (brick && 'inputPin' in brick) {
+			// Sensor
+			condStr = `digitalRead(${brick.inputPin}) == ${condition.value.value}`;
+		} else if (brick && 'outputPin' in brick) {
+			// Actuator
+			condStr = `digitalRead(${brick.outputPin}) == ${condition.value.value}`;
 		}
-		
-		// Build debounce checks
-		const debounceChecks = sensors.map(sensor => 
+
+		if (i === 0) {
+			conditionCode = condStr;
+		} else {
+			const operator = transition.operator[i - 1] === 'and' ? '&&' : '||';
+			conditionCode += ` ${operator} ${condStr}`;
+		}
+	}
+
+	// Build debounce checks only for sensors
+	let debounceCheck = '';
+	if (sensors.length > 0) {
+		const debounceChecks = sensors.map(sensor =>
 			`millis() - ${sensor.name}LastDebounceTime > debounce`
 		).join(' && ');
-		
-		// Generate the complete transition code
-		fileNode.append(`
-					if( (${conditionCode}) && (${debounceChecks}) ) {`);
-		
-		// Update debounce times for all sensors
-		for (const sensor of sensors) {
-			fileNode.append(`
-						${sensor.name}LastDebounceTime = millis();`);
-		}
-		
-		// Change state
-		fileNode.append(`
-						currentState = ${transition.next.ref?.name};
-					}
-		`);
+		debounceCheck = ` && (${debounceChecks})`;
 	}
 
-	function compileLCDAction(lcdAction: LCDAction, fileNode:CompositeGeneratorNode) {
+	// Generate the complete transition code
+	fileNode.append(`
+			if( (${conditionCode})${debounceCheck} ) {`);
+
+	// Update debounce times only for sensors
+	for (const sensor of sensors) {
 		fileNode.append(`
-					lcd.clear();
-					lcd.setCursor(0, 0);`);
-		
-		for (const part of lcdAction.parts) {
-			if ('text' in part) {
-				// ConstantPart
+				${sensor.name}LastDebounceTime = millis();`);
+	}
+
+	// Change state
+	fileNode.append(`
+				currentState = ${transition.next.ref?.name};
+			}
+	`);
+}
+
+function compileLCDAction(lcdAction: LCDAction, fileNode: CompositeGeneratorNode) {
+	fileNode.append(`
+			lcd.clear();
+			lcd.setCursor(0, 0);`);
+
+	for (const part of lcdAction.parts) {
+		if ('text' in part) {
+			// ConstantPart
+			fileNode.append(`
+			lcd.print('${part.text}');`);
+		} else {
+			// BrickStatusPart
+			const brick = part.brick.ref;
+			if (brick && 'inputPin' in brick) {
+				// Sensor
 				fileNode.append(`
-					lcd.print('${part.text}');`);
-			} else {
-				// BrickStatusPart
-				const brick = part.brick.ref;
-				if (brick && 'inputPin' in brick) {
-					// Sensor
-					fileNode.append(`
-					lcd.print(digitalRead(${brick.inputPin}) == HIGH ? "HIGH" : "LOW");`);
-				} else if (brick && 'outputPin' in brick) {
-					// Actuator
-					fileNode.append(`
-					lcd.print(digitalRead(${brick.outputPin}) == HIGH ? "ON" : "OFF");`);
-				}
+			lcd.print(digitalRead(${brick.inputPin}) == HIGH ? "HIGH" : "LOW");`);
+			} else if (brick && 'outputPin' in brick) {
+				// Actuator
+				fileNode.append(`
+			lcd.print(digitalRead(${brick.outputPin}) == HIGH ? "ON" : "OFF");`);
 			}
 		}
 	}
-
+}

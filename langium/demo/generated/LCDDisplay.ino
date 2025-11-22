@@ -25,30 +25,30 @@ long buttonLastDebounceTime = 0;
 		pinMode(9, INPUT); // button [Sensor]
 	}
 	void loop() {
-			switch(currentState){
+		switch(currentState){
 
 				case off:
 					digitalWrite(13,LOW);
-					lcd.clear();
-					lcd.setCursor(0, 0);
-					lcd.print('LED is OFF');
-					if( (digitalRead(9) == HIGH) && (millis() - buttonLastDebounceTime > debounce) ) {
-						buttonLastDebounceTime = millis();
-						currentState = on;
-					}
-		
+			lcd.clear();
+			lcd.setCursor(0, 0);
+			lcd.print('LED is OFF');
+			if( (digitalRead(9) == HIGH) && (millis() - buttonLastDebounceTime > debounce) ) {
+				buttonLastDebounceTime = millis();
+				currentState = on;
+			}
+	
 				break;
 				case on:
 					digitalWrite(13,HIGH);
-					lcd.clear();
-					lcd.setCursor(0, 0);
-					lcd.print('LED: ');
-					lcd.print(digitalRead(13) == HIGH ? "ON" : "OFF");
-					if( (digitalRead(9) == HIGH) && (millis() - buttonLastDebounceTime > debounce) ) {
-						buttonLastDebounceTime = millis();
-						currentState = off;
-					}
-		
+			lcd.clear();
+			lcd.setCursor(0, 0);
+			lcd.print('LED: ');
+			lcd.print(digitalRead(13) == HIGH ? "ON" : "OFF");
+			if( (digitalRead(9) == HIGH) && (millis() - buttonLastDebounceTime > debounce) ) {
+				buttonLastDebounceTime = millis();
+				currentState = off;
+			}
+	
 				break;
 		}
 	}
