@@ -26,7 +26,7 @@ Sensor :
 LCD:
 	{infer LCD}
 	'LCD' name=ID;
-
+	
 State :
 	name=ID '{'
 		(actions+=(Action | LCDAction))*
