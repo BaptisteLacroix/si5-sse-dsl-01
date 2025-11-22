@@ -27,7 +27,7 @@ export class PinAllocator {
     private static readonly ANALOG_INPUT_PINS = [1, 2, 3, 4, 5]; // A0-A5 as digital equivalents
     
     // Pins reserved for LCD (if LCD is present)
-    private static readonly LCD_RESERVED_PINS = [2, 3, 4, 5, 11, 12];
+    private static readonly LCD_RESERVED_PINS = [10, 11, 12, 13, 14, 15, 16];
 
     private availableDigitalPins: number[];
     private availablePWMPins: number[];
