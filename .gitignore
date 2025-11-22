@@ -3,3 +3,4 @@ node_modules
 cours/
 .idea/
 .vscode/
+.DS_Store

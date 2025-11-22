@@ -1,1 +1,4 @@
 **/node_modules/
+out/*
+generated/*
+src/language-server/generated/*
