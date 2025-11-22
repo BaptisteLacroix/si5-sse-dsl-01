@@ -144,11 +144,12 @@ long `+brick.name+`LastDebounceTime = 0;
  * ```
  */
 	function compileTransition(transition: Transition, fileNode:CompositeGeneratorNode) {
-		// Collect all unique sensors from conditions
+		// Collect all unique sensors from conditions (only sensors need debouncing)
 		const sensors: Sensor[] = [];
 		for (const condition of transition.conditions) {
-			if (condition.sensor?.ref && !sensors.includes(condition.sensor.ref)) {
-				sensors.push(condition.sensor.ref);
+			const brick = condition.brick?.ref;
+			if (brick && 'inputPin' in brick && !sensors.includes(brick)) {
+				sensors.push(brick);
 			}
 		}
 		
@@ -156,7 +157,17 @@ long `+brick.name+`LastDebounceTime = 0;
 		let conditionCode = '';
 		for (let i = 0; i < transition.conditions.length; i++) {
 			const condition = transition.conditions[i];
-			const condStr = `digitalRead(${condition.sensor.ref?.inputPin}) == ${condition.value.value}`;
+			const brick = condition.brick.ref;
+			
+			// Generate condition based on brick type
+			let condStr = '';
+			if (brick && 'inputPin' in brick) {
+				// Sensor
+				condStr = `digitalRead(${brick.inputPin}) == ${condition.value.value}`;
+			} else if (brick && 'outputPin' in brick) {
+				// Actuator
+				condStr = `digitalRead(${brick.outputPin}) == ${condition.value.value}`;
+			}
 			
 			if (i === 0) {
 				conditionCode = condStr;
@@ -166,16 +177,20 @@ long `+brick.name+`LastDebounceTime = 0;
 			}
 		}
 		
-		// Build debounce checks
-		const debounceChecks = sensors.map(sensor => 
-			`millis() - ${sensor.name}LastDebounceTime > debounce`
-		).join(' && ');
+		// Build debounce checks only for sensors
+		let debounceCheck = '';
+		if (sensors.length > 0) {
+			const debounceChecks = sensors.map(sensor => 
+				`millis() - ${sensor.name}LastDebounceTime > debounce`
+			).join(' && ');
+			debounceCheck = ` && (${debounceChecks})`;
+		}
 		
 		// Generate the complete transition code
 		fileNode.append(`
-					if( (${conditionCode}) && (${debounceChecks}) ) {`);
+					if( (${conditionCode})${debounceCheck} ) {`);
 		
-		// Update debounce times for all sensors
+		// Update debounce times only for sensors
 		for (const sensor of sensors) {
 			fileNode.append(`
 						${sensor.name}LastDebounceTime = millis();`);

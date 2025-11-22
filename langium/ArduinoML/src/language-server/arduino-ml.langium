@@ -26,11 +26,11 @@ Sensor :
 LCD:
 	{infer LCD}
 	'LCD' name=ID;
-	
+
 State :
 	name=ID '{'
 		actions+=(Action | LCDAction)
-		(actions+=(Action | LCDAction))* 
+		(actions+=(Action | LCDAction))*
 		transition=Transition
 	'}';
 
@@ -54,7 +54,7 @@ Transition:
 	conditions+=Condition (operator+=('and' | 'or') conditions+=Condition)* '=>' next=[State:ID];
 
 Condition:
-	sensor=[Sensor:ID] 'is' value=Signal;
+	brick=[Brick:ID] 'is' value=Signal;
 
 Signal:
     value=(HIGH | LOW);
