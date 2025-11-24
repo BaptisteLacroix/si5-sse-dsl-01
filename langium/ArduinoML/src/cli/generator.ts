@@ -1,7 +1,7 @@
 import fs from 'fs';
 import { CompositeGeneratorNode, NL, toString } from 'langium';
 import path from 'path';
-import { Action, Actuator, App, Sensor, State, Transition } from '../language-server/generated/ast';
+import { Action, App, State, Transition } from '../language-server/generated/ast';
 import { extractDestinationAndName } from './cli-util';
 import { PinAllocator } from './pin-allocator';
 
@@ -29,7 +29,7 @@ function compile(app:App, fileNode:CompositeGeneratorNode){
 	const pinAllocator = new PinAllocator(hasLCD);
 	pinAllocator.allocatePins(app.bricks);
 	
-    fileNode.append(
+	fileNode.append(
 	`
 //Wiring code generated from an ArduinoML model
 // Application name: `+app.name+`
@@ -40,58 +40,31 @@ long debounce = 200;
 enum STATE {`+app.states.map(s => s.name).join(', ')+`};
 
 STATE currentState = `+app.initial.ref?.name+`;`
-    ,NL);
+	,NL);
 	
-    for(const brick of app.bricks){
-        if (brick.$type === 'Sensor'){
-            fileNode.append(`
-bool `+brick.name+`BounceGuard = false;
-long `+brick.name+`LastDebounceTime = 0;
-
-            `,NL);
-        }
-    }
-    fileNode.append(`
+	// Generate debounce variables for sensors
+	pinAllocator.generateDebounceVariables(app.bricks, fileNode);
+	
+	fileNode.append(`
 	void setup(){`);
-    for(const brick of app.bricks){
-        if (brick.$type === 'Sensor'){
-       		compileSensor(brick as Sensor, fileNode, pinAllocator);
-		} else if (brick.$type === 'Actuator'){
-            compileActuator(brick as Actuator, fileNode, pinAllocator);
-        }
-	}
+	
+	// Generate pinMode setup for all bricks
+	pinAllocator.generatePinModeSetup(app.bricks, fileNode);
 
-
-    fileNode.append(`
+	fileNode.append(`
 	}
 	void loop() {
 			switch(currentState){`,NL)
 			for(const state of app.states){
 				compileState(state, fileNode, pinAllocator)
-            }
+			}
 	fileNode.append(`
 		}
 	}
 	`,NL);
+}
 
-
-
-
-    }
-
-	function compileActuator(actuator: Actuator, fileNode: CompositeGeneratorNode, pinAllocator: PinAllocator) {
-		const pin = pinAllocator.getPin(actuator);
-        fileNode.append(`
-		pinMode(`+pin+`, OUTPUT); // `+actuator.name+` [Actuator]`)
-    }
-
-	function compileSensor(sensor:Sensor, fileNode: CompositeGeneratorNode, pinAllocator: PinAllocator) {
-		const pin = pinAllocator.getPin(sensor);
-    	fileNode.append(`
-		pinMode(`+pin+`, INPUT); // `+sensor.name+` [Sensor]`)
-	}
-
-    function compileState(state: State, fileNode: CompositeGeneratorNode, pinAllocator: PinAllocator) {
+	function compileState(state: State, fileNode: CompositeGeneratorNode, pinAllocator: PinAllocator) {
         fileNode.append(`
 				case `+state.name+`:`)
 		for(const action of state.actions){
@@ -106,9 +79,7 @@ long `+brick.name+`LastDebounceTime = 0;
 	
 
 	function compileAction(action: Action, fileNode:CompositeGeneratorNode, pinAllocator: PinAllocator) {
-		const pin = pinAllocator.getPin(action.actuator.ref!);
-		fileNode.append(`
-					digitalWrite(`+pin+`,`+action.value.value+`);`)
+		pinAllocator.generateDigitalWrite(action.actuator.ref!, action.value.value, fileNode);
 	}
 
 /**
@@ -132,43 +103,11 @@ long `+brick.name+`LastDebounceTime = 0;
  * ```
  */
 	function compileTransition(transition: Transition, fileNode:CompositeGeneratorNode, pinAllocator: PinAllocator) {
-		// Collect all unique sensors from conditions (only sensors need debouncing)
-		const sensors: Sensor[] = [];
-		for (const condition of transition.conditions) {
-			const brick = condition.brick?.ref;
-			if (brick && brick.$type === 'Sensor' && !sensors.includes(brick as Sensor)) {
-				sensors.push(brick as Sensor);
-			}
-		}
-		
-		// Build the condition expression
-		let conditionCode = '';
-		for (let i = 0; i < transition.conditions.length; i++) {
-			const condition = transition.conditions[i];
-			const brick = condition.brick.ref;
-			
-			if (!brick) continue;
-			
-			// Get the allocated pin
-			const pin = pinAllocator.getPin(brick);
-			
-			// Generate condition based on brick type
-			let condStr = '';
-			if (brick.$type === 'Sensor') {
-				// Sensor
-				condStr = `digitalRead(${pin}) == ${condition.value.value}`;
-			} else if (brick.$type === 'Actuator') {
-				// Actuator
-				condStr = `digitalRead(${pin}) == ${condition.value.value}`;
-			}
-			
-			if (i === 0) {
-				conditionCode = condStr;
-			} else {
-				const operator = transition.operator[i - 1] === 'and' ? '&&' : '||';
-				conditionCode += ` ${operator} ${condStr}`;
-			}
-		}
+		// Generate transition condition and get involved sensors
+		const { conditionCode, sensors } = pinAllocator.generateTransitionCondition(
+			transition.conditions,
+			transition.operator
+		);
 		
 		// Build debounce checks only for sensors
 		let debounceCheck = '';

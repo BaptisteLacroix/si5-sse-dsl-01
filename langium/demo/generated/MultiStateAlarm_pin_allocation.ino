@@ -16,7 +16,6 @@ bool buttonBounceGuard = false;
 long buttonLastDebounceTime = 0;
 
             
-
 	void setup(){
 		pinMode(8, OUTPUT); // buzzer [Actuator]
 		pinMode(9, OUTPUT); // led [Actuator]

@@ -1,4 +1,5 @@
 import { Actuator, Sensor, Brick } from '../language-server/generated/ast';
+import { CompositeGeneratorNode } from 'langium';
 
 /**
  * Arduino Uno Pin Allocation Strategy
@@ -156,5 +157,82 @@ export class PinAllocator {
      */
     getPin(brick: Brick): number {
         return this.allocations.get(brick) || -1;
+    }
+
+    /**
+     * Generate debounce variable declarations for all sensors
+     */
+    generateDebounceVariables(bricks: Brick[], fileNode: CompositeGeneratorNode): void {
+        for (const brick of bricks) {
+            if (brick.$type === 'Sensor') {
+                fileNode.append(`
+bool ${brick.name}BounceGuard = false;
+long ${brick.name}LastDebounceTime = 0;
+
+            `);
+            }
+        }
+    }
+
+    /**
+     * Generate pinMode setup calls for all bricks
+     */
+    generatePinModeSetup(bricks: Brick[], fileNode: CompositeGeneratorNode): void {
+        for (const brick of bricks) {
+            const pin = this.getPin(brick);
+            if (brick.$type === 'Sensor') {
+                fileNode.append(`
+		pinMode(${pin}, INPUT); // ${brick.name} [Sensor]`);
+            } else if (brick.$type === 'Actuator') {
+                fileNode.append(`
+		pinMode(${pin}, OUTPUT); // ${brick.name} [Actuator]`);
+            }
+        }
+    }
+
+    /**
+     * Generate digitalWrite call for an actuator action
+     */
+    generateDigitalWrite(actuator: Brick, value: string, fileNode: CompositeGeneratorNode): void {
+        const pin = this.getPin(actuator);
+        fileNode.append(`
+					digitalWrite(${pin},${value});`);
+    }
+
+    /**
+     * Generate condition code for a transition with debouncing
+     * Returns the condition expression and list of sensors involved
+     */
+    generateTransitionCondition(conditions: any[], operators: string[]): { conditionCode: string; sensors: Sensor[] } {
+        const sensors: Sensor[] = [];
+        let conditionCode = '';
+
+        // Collect unique sensors and build condition
+        for (let i = 0; i < conditions.length; i++) {
+            const condition = conditions[i];
+            const brick = condition.brick?.ref;
+            
+            if (!brick) continue;
+
+            // Collect sensors for debouncing
+            if (brick.$type === 'Sensor' && !sensors.includes(brick as Sensor)) {
+                sensors.push(brick as Sensor);
+            }
+
+            // Get the allocated pin
+            const pin = this.getPin(brick);
+
+            // Generate condition string
+            const condStr = `digitalRead(${pin}) == ${condition.value.value}`;
+
+            if (i === 0) {
+                conditionCode = condStr;
+            } else {
+                const operator = operators[i - 1] === 'and' ? '&&' : '||';
+                conditionCode += ` ${operator} ${condStr}`;
+            }
+        }
+
+        return { conditionCode, sensors };
     }
 }

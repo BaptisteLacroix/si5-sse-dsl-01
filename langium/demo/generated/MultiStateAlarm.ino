@@ -2,6 +2,11 @@
 //Wiring code generated from an ArduinoML model
 // Application name: MultiStateAlarm
 
+// Pin Allocation Summary:
+//   buzzer (Actuator): Pin D11 (11)
+//   led (Actuator): Pin D12 (12)
+//   button (Sensor): Pin D9 (9)
+
 long debounce = 200;
 enum STATE {ready, buzzing, led_on};
 
@@ -11,7 +16,6 @@ bool buttonBounceGuard = false;
 long buttonLastDebounceTime = 0;
 
             
-
 	void setup(){
 		pinMode(11, OUTPUT); // buzzer [Actuator]
 		pinMode(12, OUTPUT); // led [Actuator]

@@ -2,6 +2,11 @@
 //Wiring code generated from an ArduinoML model
 // Application name: RedButton
 
+// Pin Allocation Summary:
+//   red_led (Actuator): Pin D12 (12)
+//   buzzer (Actuator): Pin D11 (11)
+//   button (Sensor): Pin D8 (8)
+
 long debounce = 200;
 enum STATE {off, on};
 
@@ -11,7 +16,6 @@ bool buttonBounceGuard = false;
 long buttonLastDebounceTime = 0;
 
             
-
 	void setup(){
 		pinMode(12, OUTPUT); // red_led [Actuator]
 		pinMode(11, OUTPUT); // buzzer [Actuator]
