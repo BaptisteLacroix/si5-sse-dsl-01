@@ -23,6 +23,13 @@ import {
     compileAnalogCondition,
     isAnalogCondition,
 } from './analog-bricks-compiler';
+import {
+    hasMultipleMachines,
+    validateMachineConfiguration,
+    generateMultiMachineHeader,
+    generateMultiMachineLoop,
+    generateMachineStateTransition,
+} from './multi-machine-compiler';
 import {compileLCDAction} from "./lcd";
 
 export function generateInoFile(
@@ -44,6 +51,8 @@ export function generateInoFile(
 }
 
 function compile(app: App, fileNode: CompositeGeneratorNode) {
+    validateMachineConfiguration(app);
+
     // Check if app uses LCD
     const hasLCD = app.bricks.some((brick) => brick.$type === 'LCD');
 
@@ -64,8 +73,12 @@ LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
         fileNode.append(PITCHES_DEFINITIONS, NL);
     }
 
-    fileNode.append(
-        `
+    if (hasMultipleMachines(app)) {
+        generateMultiMachineHeader(app, fileNode);
+        fileNode.append(pinAllocator.getAllocationSummary(), NL);
+    } else {
+        fileNode.append(
+            `
 //Wiring code generated from an ArduinoML model
 // Application name: ` +
         app.name +
@@ -79,7 +92,7 @@ enum STATE {` +
         `};
 
 STATE currentState = ` +
-        app.initial.ref?.name +
+        app.initial?.ref?.name +
         `;`,
         NL
     );
@@ -127,7 +140,14 @@ long ${brick.name}LastDebounceTime = 0;
     }
 
     fileNode.append(`
-	}
+	}`);
+
+    if (hasMultipleMachines(app)) {
+        generateMultiMachineLoop(app, fileNode, (state, machineName) => {
+            compileState(state, fileNode, pinAllocator, machineName);
+        });
+    } else {
+        fileNode.append(`
 	void loop() {
 			switch(currentState){`, NL);
 
@@ -141,7 +161,7 @@ long ${brick.name}LastDebounceTime = 0;
 	`, NL);
 }
 
-function compileState(state: State, fileNode: CompositeGeneratorNode, pinAllocator: PinAllocator) {
+function compileState(state: State, fileNode: CompositeGeneratorNode, pinAllocator: PinAllocator, machineName?: string) {
     fileNode.append(`
 				case `+state.name+`:`)
     for(const action of state.actions){
@@ -157,7 +177,7 @@ function compileState(state: State, fileNode: CompositeGeneratorNode, pinAllocat
     }
     if (state.transitions !== null){
         for (const transition of state.transitions) {
-            compileTransition(transition, fileNode, pinAllocator);
+            compileTransition(transition, fileNode, pinAllocator, machineName);
         }
     }
     fileNode.append(`break;`)
@@ -196,7 +216,8 @@ function compileAction(action: Action, fileNode: CompositeGeneratorNode, pinAllo
 function compileTransition(
     transition: Transition,
     fileNode: CompositeGeneratorNode,
-    pinAllocator: PinAllocator
+    pinAllocator: PinAllocator,
+    machineName?: string
 ) {
     // Collect all unique digital sensors from the expression tree
     const sensors: Sensor[] = []
@@ -227,9 +248,14 @@ function compileTransition(
 						${sensor.name}LastDebounceTime = millis();`);
     }
 
-    // Change state
+    if (machineName) {
+        generateMachineStateTransition(machineName, transition.next.ref?.name!, fileNode);
+    } else {
+        fileNode.append(`
+						currentState = ${transition.next.ref?.name};`);
+    }
+
     fileNode.append(`
-						currentState = ${transition.next.ref?.name};
 					}
 		`);
 }
@@ -285,4 +311,4 @@ function collectSensors(expr: LogicalExpression, sensors: Sensor[]): void {
             }
         }
     }
-}
+}}}

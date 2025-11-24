@@ -1,16 +1,28 @@
 grammar ArduinoMl
 
 entry App:
-	'app' name=ID 'initial' 'state' initial=[State:ID]
+	'app' name=ID ('initial' 'state' initial=[State:ID])?
 	'{'
 		'bricks'
 		bricks+=Brick
 		(bricks+=Brick)*
 
-		'states'
+		('states'
 		states+=State
-		( states+=State)*
+		( states+=State)*)?
+
+		('machines'
+        machines+=StateMachine
+        (machines+=StateMachine)*)?
 	'}';
+
+StateMachine:
+    'machine' name=ID 'period' period=INT 'ms' 'initial' 'state' initial=[State:ID]
+    '{'
+       'states'
+       states+=State
+       (states+=State)*
+    '}';
 
 Brick:
 	(Actuator | Sensor | AnalogActuator | AnalogSensor | Buzzer | LCD);
