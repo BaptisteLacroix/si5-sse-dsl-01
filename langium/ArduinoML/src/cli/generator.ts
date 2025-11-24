@@ -4,14 +4,19 @@ import path from 'path'
 import {
     Action,
     Actuator,
-    AnalogActuator,
-    AnalogSensor,
     App,
     Sensor,
     State,
     Transition,
 } from '../language-server/generated/ast'
 import { extractDestinationAndName } from './cli-util'
+import {
+    compileAnalogActuator,
+    compileAnalogSensor,
+    compileAnalogAction,
+    compileAnalogCondition,
+    isAnalogCondition,
+} from './analog-bricks-compiler'
 
 export function generateInoFile(
     app: App,
@@ -118,20 +123,6 @@ function compileActuator(actuator: Actuator, fileNode: CompositeGeneratorNode) {
     )
 }
 
-function compileAnalogActuator(
-    actuator: AnalogActuator,
-    fileNode: CompositeGeneratorNode
-) {
-    fileNode.append(
-        `
-		pinMode(` +
-            actuator.outputPin +
-            `, OUTPUT); // ` +
-            actuator.name +
-            ` [AnalogActuator]`
-    )
-}
-
 function compileSensor(sensor: Sensor, fileNode: CompositeGeneratorNode) {
     fileNode.append(
         `
@@ -140,20 +131,6 @@ function compileSensor(sensor: Sensor, fileNode: CompositeGeneratorNode) {
             `, INPUT); // ` +
             sensor.name +
             ` [Sensor]`
-    )
-}
-
-function compileAnalogSensor(
-    sensor: AnalogSensor,
-    fileNode: CompositeGeneratorNode
-) {
-    fileNode.append(
-        `
-		pinMode(` +
-            sensor.inputPin +
-            `, INPUT); // ` +
-            sensor.name +
-            ` [AnalogSensor]`
     )
 }
 
@@ -187,27 +164,7 @@ function compileAction(action: Action, fileNode: CompositeGeneratorNode) {
         )
     } else if (action.analogActuator && action.analogValue) {
         // Analog actuator
-        if (action.analogValue.intValue !== undefined) {
-            // Direct integer value
-            fileNode.append(
-                `
-					analogWrite(` +
-                    action.analogActuator.ref?.outputPin +
-                    `,` +
-                    action.analogValue.intValue +
-                    `);`
-            )
-        } else if (action.analogValue.sensorValue) {
-            // Value from another analog sensor
-            fileNode.append(
-                `
-					analogWrite(` +
-                    action.analogActuator.ref?.outputPin +
-                    `, analogRead(` +
-                    action.analogValue.sensorValue.ref?.inputPin +
-                    `));`
-            )
-        }
+        compileAnalogAction(action, fileNode)
     }
 }
 
@@ -253,14 +210,9 @@ function compileTransition(
 
         // Generate condition based on type
         let condStr = ''
-        if (
-            condition.analogBrick &&
-            condition.operator &&
-            condition.threshold !== undefined
-        ) {
+        if (isAnalogCondition(condition)) {
             // Analog sensor with threshold comparison
-            const analogSensor = condition.analogBrick.ref
-            condStr = `analogRead(${analogSensor?.inputPin}) ${condition.operator} ${condition.threshold}`
+            condStr = compileAnalogCondition(condition)
         } else if (condition.brick) {
             const brick = condition.brick.ref
             if (brick && 'inputPin' in brick) {
