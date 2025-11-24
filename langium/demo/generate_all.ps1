@@ -41,6 +41,7 @@ Generate-File ".\feature_scenarios\PrecedenceTest.aml"
 Generate-File ".\feature_scenarios\ReversedPrecedenceTest.aml"
 Generate-File ".\feature_scenarios\BuzzerTest.aml"
 Generate-File ".\feature_scenarios\WhenTheImposterIsSus.aml"
+Generate-File ".\feature_scenarios\ParallelPeriodicRegion.aml"
 
 Write-Host "=========================================="
 Write-Host "Generation Summary"

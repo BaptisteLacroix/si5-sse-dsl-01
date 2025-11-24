@@ -1,0 +1,32 @@
+app ParallelPeriodicButtons {
+	bricks
+		Actuator LED1 : 10
+		Actuator LED2 : 11
+		Sensor button1 : 8
+		Sensor button2 : 9
+
+	machines
+		machine toggleMachine period 400 ms initial state led1Off {
+			states
+				led1Off {
+					LED1 <= LOW
+					button1 is HIGH => led1On
+				}
+				led1On {
+					LED1 <= HIGH
+					button1 is HIGH => led1Off
+				}
+		}
+
+		machine pushMachine period 50 ms initial state led2Off {
+			states
+				led2Off {
+					LED2 <= LOW
+					button2 is HIGH => led2On
+				}
+				led2On {
+					LED2 <= HIGH
+					button2 is LOW => led2Off
+				}
+		}
+}

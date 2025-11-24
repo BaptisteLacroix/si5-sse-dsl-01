@@ -41,6 +41,7 @@ generate_file "./feature_scenarios/PrecedenceTest.aml"
 generate_file "./feature_scenarios/ReversedPrecedenceTest.aml"
 generate_file "./feature_scenarios/BuzzerTest.aml"
 generate_file "./feature_scenarios/WhenTheImposterIsSus.aml"
+generate_file "./feature_scenarios/ParallelPeriodicRegion.aml"
 
 echo "=========================================="
 echo "Generation Summary"
