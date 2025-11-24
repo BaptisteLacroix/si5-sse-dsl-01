@@ -12,38 +12,51 @@ entry App:
 		( states+=State)* 		
 	'}';
 
-Brick :
-	(Actuator | Sensor);
+Brick:
+	(Actuator | Sensor | AnalogActuator | AnalogSensor);
 
 Actuator:
 	{infer Actuator}
 	'Actuator' name=ID (':' outputPin=INT)? ('type' actuatorType=('digital' | 'analog'))?;
 
-Sensor :
+Sensor:
 	{infer Sensor}
 	'Sensor'  name=ID (':' inputPin=INT)? ('type' sensorType=('digital' | 'analog'))?;
-	
-State :
+
+AnalogActuator:
+	{infer AnalogActuator}
+	'AnalogActuator' name=ID (':' outputPin=INT)?;
+
+AnalogSensor:
+	{infer AnalogSensor}
+	'AnalogSensor' name=ID (':' inputPin=INT)?;
+
+State:
 	name=ID '{'
 		(actions+=Action)* 
 		transition=Transition
 	'}';
 
 
-Action :
-	actuator=[Actuator:ID] '<=' value=Signal;
+Action:
+	actuator=[Actuator:ID] '<=' value=Signal |
+	analogActuator=[AnalogActuator:ID] '<=' analogValue=AnalogValue;
 
 Transition:
 	conditions+=Condition (operator+=('and' | 'or') conditions+=Condition)* '=>' next=[State:ID];
 
 Condition:
-	brick=[Brick:ID] 'is' value=Signal;
+	brick=[Brick:ID] 'is' value=Signal |
+	analogBrick=[AnalogSensor:ID] operator=('>' | '<' | '>=' | '<=' | '==' | '!=') threshold=INT;
 
 Signal:
-    value=(HIGH | LOW);
+	value=(HIGH | LOW);
 
-terminal HIGH : 'HIGH';
-terminal LOW : 'LOW';
+AnalogValue:
+	intValue=INT | sensorValue=[AnalogSensor:ID];
+
+terminal HIGH: 'HIGH';
+terminal LOW: 'LOW';
 
 hidden terminal WS: /\s+/;
 terminal ID: /[_a-zA-Z][\w_]*/;
