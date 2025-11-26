@@ -82,9 +82,9 @@ long ${brick.name}LastDebounceTime = 0;
     // Generate pinMode setup for all bricks (both digital and analog)
     for (const brick of app.bricks) {
         if (brick.$type === 'AnalogSensor') {
-            compileAnalogSensor(brick, fileNode);
+            compileAnalogSensor(brick, fileNode, pinAllocator);
         } else if (brick.$type === 'AnalogActuator') {
-            compileAnalogActuator(brick, fileNode);
+            compileAnalogActuator(brick, fileNode, pinAllocator);
         } else if (brick.$type === 'Sensor' || brick.$type === 'Actuator') {
             // Use pin allocator for digital bricks
             const pin = pinAllocator.getPin(brick);
@@ -132,7 +132,7 @@ function compileAction(action: Action, fileNode: CompositeGeneratorNode, pinAllo
         pinAllocator.generateDigitalWrite(action.actuator.ref!, action.value.value, fileNode);
     } else if (action.analogActuator && action.analogValue) {
         // Analog actuator - use analog brick compiler
-        compileAnalogAction(action, fileNode);
+        compileAnalogAction(action, fileNode, pinAllocator);
     }
 }
 
@@ -165,7 +165,7 @@ function compileTransition(
         let condStr = '';
         if (isAnalogCondition(condition)) {
             // Analog sensor with threshold comparison
-            condStr = compileAnalogCondition(condition);
+            condStr = compileAnalogCondition(condition, pinAllocator);
         } else if (condition.brick) {
             const brick = condition.brick.ref;
             if (brick && brick.$type === 'Sensor') {

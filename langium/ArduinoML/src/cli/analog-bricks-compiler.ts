@@ -5,18 +5,21 @@ import {
     AnalogSensor,
     Condition,
 } from '../language-server/generated/ast'
+import { PinAllocator } from './pin-allocator'
 
 /**
  * Compiles an analog actuator setup (pinMode)
  */
 export function compileAnalogActuator(
     actuator: AnalogActuator,
-    fileNode: CompositeGeneratorNode
+    fileNode: CompositeGeneratorNode,
+    pinAllocator: PinAllocator
 ): void {
+    const pin = pinAllocator.getPin(actuator);
     fileNode.append(
         `
 		pinMode(` +
-            actuator.outputPin +
+            pin +
             `, OUTPUT); // ` +
             actuator.name +
             ` [AnalogActuator]`
@@ -28,12 +31,14 @@ export function compileAnalogActuator(
  */
 export function compileAnalogSensor(
     sensor: AnalogSensor,
-    fileNode: CompositeGeneratorNode
+    fileNode: CompositeGeneratorNode,
+    pinAllocator: PinAllocator
 ): void {
+    const pin = pinAllocator.getPin(sensor);
     fileNode.append(
         `
 		pinMode(` +
-            sensor.inputPin +
+            pin +
             `, INPUT); // ` +
             sensor.name +
             ` [AnalogSensor]`
@@ -46,27 +51,30 @@ export function compileAnalogSensor(
  */
 export function compileAnalogAction(
     action: Action,
-    fileNode: CompositeGeneratorNode
+    fileNode: CompositeGeneratorNode,
+    pinAllocator: PinAllocator
 ): void {
     if (action.analogActuator && action.analogValue) {
+        const actuatorPin = pinAllocator.getPin(action.analogActuator.ref!);
         if (action.analogValue.intValue !== undefined) {
             // Direct integer value
             fileNode.append(
                 `
 					analogWrite(` +
-                    action.analogActuator.ref?.outputPin +
+                    actuatorPin +
                     `,` +
                     action.analogValue.intValue +
                     `);`
             )
         } else if (action.analogValue.sensorValue) {
             // Value from another analog sensor
+            const sensorPin = pinAllocator.getPin(action.analogValue.sensorValue.ref!);
             fileNode.append(
                 `
 					analogWrite(` +
-                    action.analogActuator.ref?.outputPin +
+                    actuatorPin +
                     `, analogRead(` +
-                    action.analogValue.sensorValue.ref?.inputPin +
+                    sensorPin +
                     `));`
             )
         }
@@ -76,14 +84,15 @@ export function compileAnalogAction(
 /**
  * Compiles an analog condition (threshold comparison with analogRead)
  */
-export function compileAnalogCondition(condition: Condition): string {
+export function compileAnalogCondition(condition: Condition, pinAllocator: PinAllocator): string {
     if (
         condition.analogBrick &&
         condition.operator &&
         condition.threshold !== undefined
     ) {
-        const analogSensor = condition.analogBrick.ref
-        return `analogRead(${analogSensor?.inputPin}) ${condition.operator} ${condition.threshold}`
+        const analogSensor = condition.analogBrick.ref;
+        const pin = pinAllocator.getPin(analogSensor!);
+        return `analogRead(${pin}) ${condition.operator} ${condition.threshold}`
     }
     return ''
 }
