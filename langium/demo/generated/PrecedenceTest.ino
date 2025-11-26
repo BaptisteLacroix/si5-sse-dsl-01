@@ -36,7 +36,7 @@ long buttonCLastDebounceTime = 0;
 
 				case off:
 					digitalWrite(12,LOW);
-					if( (((digitalRead(8) == HIGH || digitalRead(9) == HIGH) && digitalRead(10) == HIGH)) && (millis() - buttonALastDebounceTime > debounce && millis() - buttonBLastDebounceTime > debounce && millis() - buttonCLastDebounceTime > debounce) ) {
+					if( ((digitalRead(8) == HIGH && (digitalRead(9) == HIGH || digitalRead(10) == HIGH))) && (millis() - buttonALastDebounceTime > debounce && millis() - buttonBLastDebounceTime > debounce && millis() - buttonCLastDebounceTime > debounce) ) {
 						buttonALastDebounceTime = millis();
 						buttonBLastDebounceTime = millis();
 						buttonCLastDebounceTime = millis();
