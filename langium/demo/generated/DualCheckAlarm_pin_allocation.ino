@@ -30,7 +30,7 @@ long button2LastDebounceTime = 0;
 
 				case off:
 					digitalWrite(8,LOW);
-					if( (digitalRead(9) == HIGH && digitalRead(10) == HIGH) && (millis() - button1LastDebounceTime > debounce && millis() - button2LastDebounceTime > debounce) ) {
+					if( ((digitalRead(9) == HIGH && digitalRead(10) == HIGH)) && (millis() - button1LastDebounceTime > debounce && millis() - button2LastDebounceTime > debounce) ) {
 						button1LastDebounceTime = millis();
 						button2LastDebounceTime = millis();
 						currentState = on;
@@ -39,7 +39,7 @@ long button2LastDebounceTime = 0;
 				break;
 				case on:
 					digitalWrite(8,HIGH);
-					if( (digitalRead(9) == LOW || digitalRead(10) == LOW) && (millis() - button1LastDebounceTime > debounce && millis() - button2LastDebounceTime > debounce) ) {
+					if( ((digitalRead(9) == LOW || digitalRead(10) == LOW)) && (millis() - button1LastDebounceTime > debounce && millis() - button2LastDebounceTime > debounce) ) {
 						button1LastDebounceTime = millis();
 						button2LastDebounceTime = millis();
 						currentState = off;

@@ -4,6 +4,9 @@ import path from 'path';
 import {
     Action,
     App,
+    BinaryExpression,
+    Condition,
+    LogicalExpression,
     Sensor,
     State,
     Transition,
@@ -138,6 +141,7 @@ function compileAction(action: Action, fileNode: CompositeGeneratorNode, pinAllo
 
 /**
  * Compiles a transition into Arduino condition checking code with debouncing.
+ * Now supports parentheses for logical operator precedence.
  * This handles both digital bricks (with pin allocation) and analog bricks (with threshold comparison).
  *
  * @param transition - The transition to compile
@@ -145,50 +149,27 @@ function compileAction(action: Action, fileNode: CompositeGeneratorNode, pinAllo
  * @param pinAllocator - The pin allocator for getting allocated pins
  *
  * @example
- * Digital: button1 is HIGH and button2 is HIGH => on
- * Analog: tempSensor > 25 => alarm
+ * Given: button1 is HIGH and (button2 is HIGH or button3 is HIGH) => on
+ * Generates:
+ * ```cpp
+ * if( (digitalRead(8) == HIGH && (digitalRead(10) == HIGH || digitalRead(12) == HIGH)) &&
+ *     (millis() - button1LastDebounceTime > debounce) ) {
+ *   button1LastDebounceTime = millis();
+ *   currentState = on;
+ * }
+ * ```
  */
 function compileTransition(
     transition: Transition,
     fileNode: CompositeGeneratorNode,
     pinAllocator: PinAllocator
 ) {
-    // Collect all unique digital sensors from conditions (only digital sensors need debouncing)
-    const sensors: Sensor[] = [];
+    // Collect all unique digital sensors from the expression tree
+    const sensors: Sensor[] = []
+    collectSensors(transition.expression, sensors)
 
-    // Build the condition expression
-    let conditionCode = '';
-    for (let i = 0; i < transition.conditions.length; i++) {
-        const condition = transition.conditions[i];
-
-        // Generate condition based on type
-        let condStr = '';
-        if (isAnalogCondition(condition)) {
-            // Analog sensor with threshold comparison
-            condStr = compileAnalogCondition(condition, pinAllocator);
-        } else if (condition.brick) {
-            const brick = condition.brick.ref;
-            if (brick && brick.$type === 'Sensor') {
-                // Digital Sensor - collect for debouncing and use allocated pin
-                if (!sensors.includes(brick)) {
-                    sensors.push(brick);
-                }
-                const pin = pinAllocator.getPin(brick);
-                condStr = `digitalRead(${pin}) == ${condition.value?.value}`;
-            } else if (brick && brick.$type === 'Actuator') {
-                // Digital Actuator - use allocated pin
-                const pin = pinAllocator.getPin(brick);
-                condStr = `digitalRead(${pin}) == ${condition.value?.value}`;
-            }
-        }
-
-        if (i === 0) {
-            conditionCode = condStr;
-        } else {
-            const operator = transition.operator[i - 1] === 'and' ? '&&' : '||';
-            conditionCode += ` ${operator} ${condStr}`;
-        }
-    }
+    // Build the condition expression recursively
+    const conditionCode = compileLogicalExpression(transition.expression, pinAllocator)
 
     // Build debounce checks only for digital sensors
     let debounceCheck = '';
@@ -218,3 +199,58 @@ function compileTransition(
 					}
 		`);
 }
+
+/**
+ * Recursively compiles a logical expression into Arduino C++ code
+ */
+function compileLogicalExpression(expr: LogicalExpression, pinAllocator: PinAllocator): string {
+    if (expr.$type === 'BinaryExpression') {
+        const binExpr = expr as BinaryExpression
+        const left = compileLogicalExpression(binExpr.left, pinAllocator)
+        const right = compileLogicalExpression(binExpr.right, pinAllocator)
+        const operator = binExpr.operator === 'and' ? '&&' : '||'
+        // Add parentheses to preserve precedence
+        return `(${left} ${operator} ${right})`
+    } else if (expr.$type === 'Condition') {
+        const condition = expr as Condition
+        return compileCondition(condition, pinAllocator)
+    }
+    return ''
+}
+
+/**
+ * Compiles a single condition (digital or analog)
+ */
+function compileCondition(condition: Condition, pinAllocator: PinAllocator): string {
+    if (isAnalogCondition(condition)) {
+        return compileAnalogCondition(condition, pinAllocator)
+    } else if (condition.brick) {
+        const brick = condition.brick.ref
+        if (brick) {
+            const pin = pinAllocator.getPin(brick)
+            return `digitalRead(${pin}) == ${condition.value?.value}`
+        }
+    }
+    return ''
+}
+
+/**
+ * Recursively collects all digital sensors from the expression tree for debouncing
+ */
+function collectSensors(expr: LogicalExpression, sensors: Sensor[]): void {
+    if (expr.$type === 'BinaryExpression') {
+        const binExpr = expr as BinaryExpression
+        collectSensors(binExpr.left, sensors)
+        collectSensors(binExpr.right, sensors)
+    } else if (expr.$type === 'Condition') {
+        const condition = expr as Condition
+        if (condition.brick) {
+            const brick = condition.brick.ref
+            if (brick && brick.$type === 'Sensor' && !sensors.includes(brick)) {
+                sensors.push(brick)
+            }
+        }
+    }
+}
+
+
