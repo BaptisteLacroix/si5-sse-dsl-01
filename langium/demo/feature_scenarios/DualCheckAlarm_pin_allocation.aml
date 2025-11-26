@@ -1,8 +1,8 @@
 app RedButton initial state off {
 	bricks
-        Actuator buzzer : 11
-		Sensor button1 : 8
-		Sensor button2 : 9
+        Actuator buzzer
+		Sensor button1
+		Sensor button2
 
 	states
 		off {

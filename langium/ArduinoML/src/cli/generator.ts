@@ -1,22 +1,22 @@
-import fs from 'fs'
-import { CompositeGeneratorNode, NL, toString } from 'langium'
-import path from 'path'
+import fs from 'fs';
+import { CompositeGeneratorNode, NL, toString } from 'langium';
+import path from 'path';
 import {
     Action,
-    Actuator,
     App,
     Sensor,
     State,
     Transition,
-} from '../language-server/generated/ast'
-import { extractDestinationAndName } from './cli-util'
+} from '../language-server/generated/ast';
+import { extractDestinationAndName } from './cli-util';
+import { PinAllocator } from './pin-allocator';
 import {
     compileAnalogActuator,
     compileAnalogSensor,
     compileAnalogAction,
     compileAnalogCondition,
     isAnalogCondition,
-} from './analog-bricks-compiler'
+} from './analog-bricks-compiler';
 
 export function generateInoFile(
     app: App,
@@ -37,12 +37,21 @@ export function generateInoFile(
 }
 
 function compile(app: App, fileNode: CompositeGeneratorNode) {
+    // Check if app uses LCD (not implemented in current grammar)
+    const hasLCD = false;
+
+    // Initialize pin allocator and allocate pins for bricks without manual assignment
+    const pinAllocator = new PinAllocator(hasLCD);
+    pinAllocator.allocatePins(app.bricks);
+
     fileNode.append(
         `
 //Wiring code generated from an ArduinoML model
 // Application name: ` +
             app.name +
             `
+
+` + pinAllocator.getAllocationSummary() + `
 
 long debounce = 200;
 enum STATE {` +
@@ -53,210 +62,159 @@ STATE currentState = ` +
             app.initial.ref?.name +
             `;`,
         NL
-    )
+    );
 
+    // Generate debounce variables only for digital sensors (analog sensors don't need debouncing)
     for (const brick of app.bricks) {
-        if ('inputPin' in brick) {
-            if (brick.$type === 'AnalogSensor') {
-                // Analog sensors don't need debounce guards
-            } else {
-                fileNode.append(
-                    `
-bool ` +
-                        brick.name +
-                        `BounceGuard = false;
-long ` +
-                        brick.name +
-                        `LastDebounceTime = 0;
+        if (brick.$type === 'Sensor') {
+            // Digital sensor needs debounce
+            fileNode.append(`
+bool ${brick.name}BounceGuard = false;
+long ${brick.name}LastDebounceTime = 0;
 
-                `,
-                    NL
-                )
-            }
+            `);
         }
     }
+
     fileNode.append(`
-	void setup(){`)
+	void setup(){`);
+
+    // Generate pinMode setup for all bricks (both digital and analog)
     for (const brick of app.bricks) {
-        if ('inputPin' in brick) {
-            if (brick.$type === 'AnalogSensor') {
-                compileAnalogSensor(brick, fileNode)
+        if (brick.$type === 'AnalogSensor') {
+            compileAnalogSensor(brick, fileNode, pinAllocator);
+        } else if (brick.$type === 'AnalogActuator') {
+            compileAnalogActuator(brick, fileNode, pinAllocator);
+        } else if (brick.$type === 'Sensor' || brick.$type === 'Actuator') {
+            // Use pin allocator for digital bricks
+            const pin = pinAllocator.getPin(brick);
+            if (brick.$type === 'Sensor') {
+                fileNode.append(`
+		pinMode(${pin}, INPUT); // ${brick.name} [Sensor]`);
             } else {
-                compileSensor(brick, fileNode)
-            }
-        } else {
-            if (brick.$type === 'AnalogActuator') {
-                compileAnalogActuator(brick, fileNode)
-            } else {
-                compileActuator(brick, fileNode)
+                fileNode.append(`
+		pinMode(${pin}, OUTPUT); // ${brick.name} [Actuator]`);
             }
         }
     }
 
-    fileNode.append(
-        `
+    fileNode.append(`
 	}
 	void loop() {
-			switch(currentState){`,
-        NL
-    )
+			switch(currentState){`, NL);
+
     for (const state of app.states) {
-        compileState(state, fileNode)
+        compileState(state, fileNode, pinAllocator);
     }
-    fileNode.append(
-        `
+
+    fileNode.append(`
 		}
 	}
-	`,
-        NL
-    )
+	`, NL);
 }
 
-function compileActuator(actuator: Actuator, fileNode: CompositeGeneratorNode) {
-    fileNode.append(
-        `
-		pinMode(` +
-            actuator.outputPin +
-            `, OUTPUT); // ` +
-            actuator.name +
-            ` [Actuator]`
-    )
-}
-
-function compileSensor(sensor: Sensor, fileNode: CompositeGeneratorNode) {
-    fileNode.append(
-        `
-		pinMode(` +
-            sensor.inputPin +
-            `, INPUT); // ` +
-            sensor.name +
-            ` [Sensor]`
-    )
-}
-
-function compileState(state: State, fileNode: CompositeGeneratorNode) {
-    fileNode.append(
-        `
-				case ` +
-            state.name +
-            `:`
-    )
+function compileState(state: State, fileNode: CompositeGeneratorNode, pinAllocator: PinAllocator) {
+    fileNode.append(`
+				case ` + state.name + `:`);
     for (const action of state.actions) {
-        compileAction(action, fileNode)
+        compileAction(action, fileNode, pinAllocator);
     }
     if (state.transition !== null) {
-        compileTransition(state.transition, fileNode)
+        compileTransition(state.transition, fileNode, pinAllocator);
     }
     fileNode.append(`
-				break;`)
+				break;`);
 }
 
-function compileAction(action: Action, fileNode: CompositeGeneratorNode) {
-    if (action.actuator) {
-        // Digital actuator
-        fileNode.append(
-            `
-					digitalWrite(` +
-                action.actuator.ref?.outputPin +
-                `,` +
-                action.value?.value +
-                `);`
-        )
+function compileAction(action: Action, fileNode: CompositeGeneratorNode, pinAllocator: PinAllocator) {
+    if (action.actuator && action.value) {
+        // Digital actuator - use pin allocator
+        pinAllocator.generateDigitalWrite(action.actuator.ref!, action.value.value, fileNode);
     } else if (action.analogActuator && action.analogValue) {
-        // Analog actuator
-        compileAnalogAction(action, fileNode)
+        // Analog actuator - use analog brick compiler
+        compileAnalogAction(action, fileNode, pinAllocator);
     }
 }
 
 /**
  * Compiles a transition into Arduino condition checking code with debouncing.
- * This simplified version handles flat lists of conditions with 'and'/'or' operators.
+ * This handles both digital bricks (with pin allocation) and analog bricks (with threshold comparison).
  *
  * @param transition - The transition to compile
  * @param fileNode - The composite generator node to append code to
+ * @param pinAllocator - The pin allocator for getting allocated pins
  *
  * @example
- * Given: button1 is HIGH and button2 is HIGH => on
- * Generates:
- * ```cpp
- * if( (digitalRead(8) == HIGH && digitalRead(10) == HIGH) &&
- *     (millis() - button1LastDebounceTime > debounce &&
- *      millis() - button2LastDebounceTime > debounce) ) {
- *   button1LastDebounceTime = millis();
- *   button2LastDebounceTime = millis();
- *   currentState = on;
- * }
- * ```
+ * Digital: button1 is HIGH and button2 is HIGH => on
+ * Analog: tempSensor > 25 => alarm
  */
 function compileTransition(
     transition: Transition,
-    fileNode: CompositeGeneratorNode
+    fileNode: CompositeGeneratorNode,
+    pinAllocator: PinAllocator
 ) {
     // Collect all unique digital sensors from conditions (only digital sensors need debouncing)
-    const sensors: Sensor[] = []
-    for (const condition of transition.conditions) {
-        if (condition.brick) {
-            const brick = condition.brick.ref
-            if (brick && brick.$type === 'Sensor' && !sensors.includes(brick)) {
-                sensors.push(brick)
-            }
-        }
-    }
+    const sensors: Sensor[] = [];
 
     // Build the condition expression
-    let conditionCode = ''
+    let conditionCode = '';
     for (let i = 0; i < transition.conditions.length; i++) {
-        const condition = transition.conditions[i]
+        const condition = transition.conditions[i];
 
         // Generate condition based on type
-        let condStr = ''
+        let condStr = '';
         if (isAnalogCondition(condition)) {
             // Analog sensor with threshold comparison
-            condStr = compileAnalogCondition(condition)
+            condStr = compileAnalogCondition(condition, pinAllocator);
         } else if (condition.brick) {
-            const brick = condition.brick.ref
-            if (brick && 'inputPin' in brick) {
-                // Digital Sensor
-                condStr = `digitalRead(${brick.inputPin}) == ${condition.value?.value}`
-            } else if (brick && 'outputPin' in brick) {
-                // Actuator
-                condStr = `digitalRead(${brick.outputPin}) == ${condition.value?.value}`
+            const brick = condition.brick.ref;
+            if (brick && brick.$type === 'Sensor') {
+                // Digital Sensor - collect for debouncing and use allocated pin
+                if (!sensors.includes(brick)) {
+                    sensors.push(brick);
+                }
+                const pin = pinAllocator.getPin(brick);
+                condStr = `digitalRead(${pin}) == ${condition.value?.value}`;
+            } else if (brick && brick.$type === 'Actuator') {
+                // Digital Actuator - use allocated pin
+                const pin = pinAllocator.getPin(brick);
+                condStr = `digitalRead(${pin}) == ${condition.value?.value}`;
             }
         }
 
         if (i === 0) {
-            conditionCode = condStr
+            conditionCode = condStr;
         } else {
-            const operator = transition.operator[i - 1] === 'and' ? '&&' : '||'
-            conditionCode += ` ${operator} ${condStr}`
+            const operator = transition.operator[i - 1] === 'and' ? '&&' : '||';
+            conditionCode += ` ${operator} ${condStr}`;
         }
     }
 
     // Build debounce checks only for digital sensors
-    let debounceCheck = ''
+    let debounceCheck = '';
     if (sensors.length > 0) {
         const debounceChecks = sensors
             .map(
                 (sensor) =>
                     `millis() - ${sensor.name}LastDebounceTime > debounce`
             )
-            .join(' && ')
-        debounceCheck = ` && (${debounceChecks})`
+            .join(' && ');
+        debounceCheck = ` && (${debounceChecks})`;
     }
 
     // Generate the complete transition code
     fileNode.append(`
-					if( (${conditionCode})${debounceCheck} ) {`)
+					if( (${conditionCode})${debounceCheck} ) {`);
 
     // Update debounce times only for digital sensors
     for (const sensor of sensors) {
         fileNode.append(`
-						${sensor.name}LastDebounceTime = millis();`)
+						${sensor.name}LastDebounceTime = millis();`);
     }
 
     // Change state
     fileNode.append(`
 						currentState = ${transition.next.ref?.name};
 					}
-		`)
+		`);
 }

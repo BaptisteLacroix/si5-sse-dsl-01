@@ -2,6 +2,10 @@
 //Wiring code generated from an ArduinoML model
 // Application name: FireDetection
 
+// Pin Allocation Summary:
+//   tempSensor (AnalogSensor): Pin D1 (1)
+//   buzzer (Actuator): Pin D9 (9)
+
 long debounce = 200;
 enum STATE {monitoring, alarm};
 
