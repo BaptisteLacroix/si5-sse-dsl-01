@@ -39,6 +39,8 @@ generate_file "./feature_scenarios/HandlingAnalogicalBricks.aml"
 generate_file "./feature_scenarios/MultiStateAlarm_pin_allocation.aml"
 generate_file "./feature_scenarios/PrecedenceTest.aml"
 generate_file "./feature_scenarios/ReversedPrecedenceTest.aml"
+generate_file "./feature_scenarios/BuzzerTest.aml"
+generate_file "./feature_scenarios/WhenTheImposterIsSus.aml"
 
 echo "=========================================="
 echo "Generation Summary"

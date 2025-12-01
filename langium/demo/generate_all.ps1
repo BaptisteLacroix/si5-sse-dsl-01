@@ -39,6 +39,8 @@ Generate-File ".\feature_scenarios\HandlingAnalogicalBricks.aml"
 Generate-File ".\feature_scenarios\MultiStateAlarm_pin_allocation.aml"
 Generate-File ".\feature_scenarios\PrecedenceTest.aml"
 Generate-File ".\feature_scenarios\ReversedPrecedenceTest.aml"
+Generate-File ".\feature_scenarios\BuzzerTest.aml"
+Generate-File ".\feature_scenarios\WhenTheImposterIsSus.aml"
 
 Write-Host "=========================================="
 Write-Host "Generation Summary"

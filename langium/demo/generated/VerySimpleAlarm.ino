@@ -31,8 +31,7 @@ long buttonLastDebounceTime = 0;
 						buttonLastDebounceTime = millis();
 						currentState = on;
 					}
-		
-				break;
+		break;
 				case on:
 					digitalWrite(12,HIGH);
 					digitalWrite(11,HIGH);
@@ -40,8 +39,7 @@ long buttonLastDebounceTime = 0;
 						buttonLastDebounceTime = millis();
 						currentState = off;
 					}
-		
-				break;
+		break;
 		}
 	}
 	

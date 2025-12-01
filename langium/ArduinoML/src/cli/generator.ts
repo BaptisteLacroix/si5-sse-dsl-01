@@ -60,7 +60,10 @@ LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
     const pinAllocator = new PinAllocator(hasLCD);
     pinAllocator.allocatePins(app.bricks);
 
-    fileNode.append(PITCHES_DEFINITIONS, NL);
+    if (app.bricks.some((brick) => brick.$type === 'Buzzer')) {
+        fileNode.append(PITCHES_DEFINITIONS, NL);
+    }
+
     fileNode.append(
         `
 //Wiring code generated from an ArduinoML model
