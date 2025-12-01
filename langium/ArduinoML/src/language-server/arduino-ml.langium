@@ -13,7 +13,7 @@ entry App:
 	'}';
 
 Brick:
-	(Actuator | Sensor | AnalogActuator | AnalogSensor);
+	(Actuator | Sensor | AnalogActuator | AnalogSensor | SerialBrick);
 
 Actuator:
 	{infer Actuator}
@@ -31,6 +31,10 @@ AnalogSensor:
 	{infer AnalogSensor}
 	'AnalogSensor' name=ID (':' inputPin=INT)?;
 
+SerialBrick:
+	{infer SerialBrick}
+	'Serial' name=ID ':' baudRate=INT;
+
 State:
 	name=ID '{'
 		(actions+=Action)* 
@@ -40,7 +44,8 @@ State:
 
 Action:
 	actuator=[Actuator:ID] '<=' value=Signal |
-	analogActuator=[AnalogActuator:ID] '<=' analogValue=AnalogValue;
+	analogActuator=[AnalogActuator:ID] '<=' analogValue=AnalogValue |
+	serial=[SerialBrick:ID] '<=' message=STRING;
 
 Transition:
 	expression=LogicalExpression '=>' next=[State:ID];
@@ -53,7 +58,8 @@ PrimaryExpression infers LogicalExpression:
 
 Condition:
 	brick=[Brick:ID] 'is' value=Signal |
-	analogBrick=[AnalogSensor:ID] operator=('>' | '<' | '>=' | '<=' | '==' | '!=') threshold=INT;
+	analogBrick=[AnalogSensor:ID] operator=('>' | '<' | '>=' | '<=' | '==' | '!=') threshold=INT |
+	serial=[SerialBrick:ID] 'is' message=STRING;
 
 Signal:
 	value=(HIGH | LOW);

@@ -1,0 +1,20 @@
+app SerialAlarm initial state waiting {
+	bricks
+		Actuator red_led : 12
+		Actuator buzzer : 11
+		Serial console : 9600
+
+	states
+		waiting {
+			red_led <= LOW
+			buzzer <= LOW
+			console <= "System ready. Type 'alarm' to activate."
+			console is "alarm" => on
+		}
+		on {
+			red_led <= HIGH
+			buzzer <= HIGH
+			console <= "ALARM ACTIVATED! Type 'stop' to deactivate."
+			console is "stop" => waiting
+		}
+}

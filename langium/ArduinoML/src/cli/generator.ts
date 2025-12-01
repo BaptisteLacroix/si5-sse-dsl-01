@@ -20,6 +20,15 @@ import {
     compileAnalogCondition,
     isAnalogCondition,
 } from './analog-bricks-compiler';
+import {
+    initializeSerial,
+    compileSerialAction,
+    isSerialCondition,
+    compileSerialCondition,
+    hasSerialCondition,
+    openSerialCheckBlock,
+    closeSerialCheckBlock,
+} from './serial-bricks-compiler';
 
 export function generateInoFile(
     app: App,
@@ -63,7 +72,8 @@ enum STATE {` +
 
 STATE currentState = ` +
             app.initial.ref?.name +
-            `;`,
+            `;
+bool stateChanged = true;`,
         NL
     );
 
@@ -81,6 +91,9 @@ long ${brick.name}LastDebounceTime = 0;
 
     fileNode.append(`
 	void setup(){`);
+
+    // Initialize serial communication if SerialBrick is present
+    initializeSerial(app, fileNode);
 
     // Generate pinMode setup for all bricks (both digital and analog)
     for (const brick of app.bricks) {
@@ -119,9 +132,22 @@ long ${brick.name}LastDebounceTime = 0;
 function compileState(state: State, fileNode: CompositeGeneratorNode, pinAllocator: PinAllocator) {
     fileNode.append(`
 				case ` + state.name + `:`);
-    for (const action of state.actions) {
-        compileAction(action, fileNode, pinAllocator);
+
+    // Wrap actions in stateChanged check to execute only on state entry
+    if (state.actions.length > 0) {
+        fileNode.append(`
+					// Execute actions on state entry
+					if (stateChanged) {
+						stateChanged = false;`);
+
+        for (const action of state.actions) {
+            compileAction(action, fileNode, pinAllocator);
+        }
+
+        fileNode.append(`
+					}`);
     }
+
     if (state.transition !== null) {
         compileTransition(state.transition, fileNode, pinAllocator);
     }
@@ -136,6 +162,9 @@ function compileAction(action: Action, fileNode: CompositeGeneratorNode, pinAllo
     } else if (action.analogActuator && action.analogValue) {
         // Analog actuator - use analog brick compiler
         compileAnalogAction(action, fileNode, pinAllocator);
+    } else if (action.serial && action.message) {
+        // Serial action - use serial brick compiler
+        compileSerialAction(action, fileNode);
     }
 }
 
@@ -164,9 +193,17 @@ function compileTransition(
     fileNode: CompositeGeneratorNode,
     pinAllocator: PinAllocator
 ) {
+    // Check if expression contains serial conditions
+    const hasSerial = hasSerialCondition(transition.expression);
+
     // Collect all unique digital sensors from the expression tree
     const sensors: Sensor[] = []
     collectSensors(transition.expression, sensors)
+
+    // If there are serial conditions, wrap in Serial.available() check
+    if (hasSerial) {
+        openSerialCheckBlock(fileNode);
+    }
 
     // Build the condition expression recursively
     const conditionCode = compileLogicalExpression(transition.expression, pinAllocator)
@@ -183,20 +220,29 @@ function compileTransition(
         debounceCheck = ` && (${debounceChecks})`;
     }
 
-    // Generate the complete transition code
+    // Generate the complete transition code with correct indentation
+    const indent = hasSerial ? '\t\t\t\t\t' : '\t\t\t\t\t';
     fileNode.append(`
-					if( (${conditionCode})${debounceCheck} ) {`);
+` + indent + `if( (${conditionCode})${debounceCheck} ) {`);
 
     // Update debounce times only for digital sensors
     for (const sensor of sensors) {
         fileNode.append(`
-						${sensor.name}LastDebounceTime = millis();`);
+` + indent + `\t${sensor.name}LastDebounceTime = millis();`);
     }
 
-    // Change state
+    // Change state and set stateChanged flag
     fileNode.append(`
-						currentState = ${transition.next.ref?.name};
-					}
+` + indent + `\tcurrentState = ${transition.next.ref?.name};
+` + indent + `\tstateChanged = true;
+` + indent + `}`);
+
+    // Close Serial.available() block if needed
+    if (hasSerial) {
+        closeSerialCheckBlock(fileNode);
+    }
+
+    fileNode.append(`
 		`);
 }
 
@@ -219,11 +265,13 @@ function compileLogicalExpression(expr: LogicalExpression, pinAllocator: PinAllo
 }
 
 /**
- * Compiles a single condition (digital or analog)
+ * Compiles a single condition (digital, analog, or serial)
  */
 function compileCondition(condition: Condition, pinAllocator: PinAllocator): string {
     if (isAnalogCondition(condition)) {
         return compileAnalogCondition(condition, pinAllocator)
+    } else if (isSerialCondition(condition)) {
+        return compileSerialCondition(condition)
     } else if (condition.brick) {
         const brick = condition.brick.ref
         if (brick) {

@@ -1,0 +1,17 @@
+app AnalogSerialTest initial state monitoring {
+	bricks
+		AnalogSensor temperature
+		AnalogActuator fan
+		Serial console : 9600
+
+	states
+		monitoring {
+			console <= "Monitoring temperature..."
+			temperature > 500 => cooling
+		}
+		cooling {
+			fan <= 200
+			console <= "Cooling activated! Type 'reset' to stop."
+			console is "reset" => monitoring
+		}
+}

@@ -1,0 +1,18 @@
+app SerialSensorCombined initial state idle {
+	bricks
+		Actuator led : 13
+		Sensor button : 8
+		Serial console : 9600
+
+	states
+		idle {
+			led <= LOW
+			console <= "System idle. Press button AND type 'start' to begin."
+			(button is HIGH and console is "start") => active
+		}
+		active {
+			led <= HIGH
+			console <= "System active! Press button OR type 'stop' to end."
+			(button is HIGH or console is "stop") => idle
+		}
+}
