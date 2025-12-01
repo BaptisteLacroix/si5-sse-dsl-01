@@ -1,5 +1,3 @@
-__author__ = 'basic_scenarios'
-
 """
 Implementation of the 4 basic scenarios using the ArduinoML DSL
 """

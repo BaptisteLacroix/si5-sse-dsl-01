@@ -1,4 +1,6 @@
-from pyArduinoML.model.Condition import SensorCondition, AndCondition, OrCondition, NotCondition
+from pyArduinoML.model.Condition import (
+    SensorCondition, AndCondition, OrCondition, NotCondition
+)
 
 
 class ConditionBuilder:
@@ -64,4 +66,3 @@ class ConditionBuilder:
         if hasattr(self, 'sensor_name') and hasattr(self, 'value'):
             return SensorCondition(bricks[self.sensor_name], self.value)
         return None
-
