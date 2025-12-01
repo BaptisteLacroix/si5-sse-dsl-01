@@ -1,0 +1,20 @@
+// Test de priorité des opérateurs avec parenthèses
+// A and (B or C) != (A and B) or C
+
+app PrecedenceTest initial state off {
+    bricks
+        Sensor buttonA : 8
+        Sensor buttonB : 9
+        Sensor buttonC : 10
+        Actuator led : 12
+
+    states
+        off {
+            led <= LOW
+            buttonA is HIGH and (buttonB is HIGH or buttonC is HIGH) => on
+        }
+        on {
+            led <= HIGH
+            buttonA is LOW => off
+        }
+}

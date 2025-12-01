@@ -33,7 +33,12 @@ Generate-File ".\basic_scenarios\StateBasedAlarm.aml"
 Generate-File ".\basic_scenarios\MultiStateAlarm.aml"
 
 Write-Host "--- Features ---"
-Generate-File ".\features_scenarios\LCDDisplay.aml"
+Generate-File ".\feature_scenarios\DualCheckAlarm_pin_allocation.aml"
+Generate-File ".\feature_scenarios\HandlingAnalogicalBricks_pin_allocation.aml"
+Generate-File ".\feature_scenarios\HandlingAnalogicalBricks.aml"
+Generate-File ".\feature_scenarios\MultiStateAlarm_pin_allocation.aml"
+Generate-File ".\feature_scenarios\PrecedenceTest.aml"
+Generate-File ".\feature_scenarios\ReversedPrecedenceTest.aml"
 
 Write-Host "=========================================="
 Write-Host "Generation Summary"

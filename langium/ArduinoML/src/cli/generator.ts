@@ -1,230 +1,304 @@
 import fs from 'fs';
 import { CompositeGeneratorNode, NL, toString } from 'langium';
 import path from 'path';
-import { Action, Actuator, App, Sensor, State, Transition, LCDAction, isAction, isLCDAction } from '../language-server/generated/ast';
+import {
+    Action,
+    App,
+    BinaryExpression,
+    Condition,
+    LogicalExpression,
+    Sensor,
+    State,
+    LCDAction,
+    isAction,
+    isLCDAction,
+    Transition,
+} from '../language-server/generated/ast';
 import { extractDestinationAndName } from './cli-util';
+import { PinAllocator } from './pin-allocator';
+import {
+    compileAnalogActuator,
+    compileAnalogSensor,
+    compileAnalogAction,
+    compileAnalogCondition,
+    isAnalogCondition,
+} from './analog-bricks-compiler';
 
-export function generateInoFile(app: App, filePath: string, destination: string | undefined): string {
-    const data = extractDestinationAndName(filePath, destination);
-    const generatedFilePath = `${path.join(data.destination, data.name)}.ino`;
+export function generateInoFile(
+    app: App,
+    filePath: string,
+    destination: string | undefined
+): string {
+    const data = extractDestinationAndName(filePath, destination)
+    const generatedFilePath = `${path.join(data.destination, data.name)}.ino`
 
-    const fileNode = new CompositeGeneratorNode();
-    compile(app,fileNode)
-    
-    
+    const fileNode = new CompositeGeneratorNode()
+    compile(app, fileNode)
+
     if (!fs.existsSync(data.destination)) {
-        fs.mkdirSync(data.destination, { recursive: true });
+        fs.mkdirSync(data.destination, { recursive: true })
     }
-    fs.writeFileSync(generatedFilePath, toString(fileNode));
-    return generatedFilePath;
+    fs.writeFileSync(generatedFilePath, toString(fileNode))
+    return generatedFilePath
 }
 
+function compile(app: App, fileNode: CompositeGeneratorNode) {
+    // Check if app uses LCD
+    const hasLCD = app.bricks.some((brick) => brick.$type === 'LCD');
 
-function compile(app:App, fileNode:CompositeGeneratorNode){
-	// Check if app uses LCD
-	const hasLCD = app.bricks.some(brick => !('inputPin' in brick) && !('outputPin' in brick));
-	
-	if (hasLCD) {
-		fileNode.append(`
+    if (hasLCD) {
+        fileNode.append(`
 #include <LiquidCrystal.h>
 
 // LCD pins: RS, E, D4, D5, D6, D7
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 `, NL);
-	}
-	
+    }
+
+    // Initialize pin allocator and allocate pins for bricks without manual assignment
+    const pinAllocator = new PinAllocator(hasLCD);
+    pinAllocator.allocatePins(app.bricks);
+
     fileNode.append(
-	`
+        `
 //Wiring code generated from an ArduinoML model
-// Application name: `+app.name+`
+// Application name: ` +
+        app.name +
+        `
+
+` + pinAllocator.getAllocationSummary() + `
 
 long debounce = 200;
-enum STATE {`+app.states.map(s => s.name).join(', ')+`};
+enum STATE {` +
+        app.states.map((s) => s.name).join(', ') +
+        `};
 
-STATE currentState = `+app.initial.ref?.name+`;`
-    ,NL);
-	
-    for(const brick of app.bricks){
-        if ("inputPin" in brick){
+STATE currentState = ` +
+        app.initial.ref?.name +
+        `;`,
+        NL
+    );
+
+    // Generate debounce variables only for digital sensors (analog sensors don't need debouncing)
+    for (const brick of app.bricks) {
+        if (brick.$type === 'Sensor') {
+            // Digital sensor needs debounce
             fileNode.append(`
-bool `+brick.name+`BounceGuard = false;
-long `+brick.name+`LastDebounceTime = 0;
+bool ${brick.name}BounceGuard = false;
+long ${brick.name}LastDebounceTime = 0;
 
-            `,NL);
+            `);
         }
     }
+
     fileNode.append(`
 	void setup(){`);
-	
-	// Initialize LCD if present
-	if (hasLCD) {
-		fileNode.append(`
+
+    if (hasLCD) {
+        fileNode.append(`
 		lcd.begin(16, 2); // Initialize LCD 16x2
 		lcd.clear();`);
-	}
-	
-    for(const brick of app.bricks){
-        if ("inputPin" in brick){
-       		compileSensor(brick,fileNode);
-		} else if ("outputPin" in brick){
-            compileActuator(brick,fileNode);
-        }
-        // LCD bricks don't need pinMode setup
-	}
+    }
 
+    // Generate pinMode setup for all bricks (both digital and analog)
+    for (const brick of app.bricks) {
+        if (brick.$type === 'AnalogSensor') {
+            compileAnalogSensor(brick, fileNode, pinAllocator);
+        } else if (brick.$type === 'AnalogActuator') {
+            compileAnalogActuator(brick, fileNode, pinAllocator);
+        } else if (brick.$type === 'Sensor' || brick.$type === 'Actuator') {
+            // Use pin allocator for digital bricks
+            const pin = pinAllocator.getPin(brick);
+            if (brick.$type === 'Sensor') {
+                fileNode.append(`
+		pinMode(${pin}, INPUT); // ${brick.name} [Sensor]`);
+            } else {
+                fileNode.append(`
+		pinMode(${pin}, OUTPUT); // ${brick.name} [Actuator]`);
+            }
+        }
+    }
 
     fileNode.append(`
 	}
 	void loop() {
-		switch(currentState){`,NL)
-		for(const state of app.states){
-			compileState(state, fileNode)
-		}
-fileNode.append(`
-		}
-	}
-	`,NL);
+			switch(currentState){`, NL);
 
-
-
-
+    for (const state of app.states) {
+        compileState(state, fileNode, pinAllocator);
     }
 
-	function compileActuator(actuator: Actuator, fileNode: CompositeGeneratorNode) {
-        fileNode.append(`
-		pinMode(`+actuator.outputPin+`, OUTPUT); // `+actuator.name+` [Actuator]`)
-    }
-
-	function compileSensor(sensor:Sensor, fileNode: CompositeGeneratorNode) {
-    	fileNode.append(`
-		pinMode(`+sensor.inputPin+`, INPUT); // `+sensor.name+` [Sensor]`)
-	}
-
-    function compileState(state: State, fileNode: CompositeGeneratorNode) {
-        fileNode.append(`
-				case `+state.name+`:`)
-		for(const action of state.actions){
-			if (isAction(action)) {
-				compileAction(action, fileNode);
-			} else if (isLCDAction(action)) {
-				compileLCDAction(action, fileNode);
-			}
+    fileNode.append(`
 		}
-		if (state.transition !== null){
-			compileTransition(state.transition, fileNode)
-		}
-		fileNode.append(`
-				break;`)
-    }
-	
-
-	function compileAction(action: Action, fileNode:CompositeGeneratorNode) {
-		fileNode.append(`
-					digitalWrite(`+action.actuator.ref?.outputPin+`,`+action.value.value+`);`)
 	}
+	`, NL);
+}
+
+function compileState(state: State, fileNode: CompositeGeneratorNode, pinAllocator: PinAllocator) {
+    fileNode.append(`
+				case ` + state.name + `:`);
+    for (const action of state.actions) {
+        if (isAction(action)) {
+            compileAction(action, fileNode, pinAllocator);
+        } else if (isLCDAction(action)) {
+            compileLCDAction(action, fileNode);
+        }
+    }
+    if (state.transition !== null) {
+        compileTransition(state.transition, fileNode, pinAllocator);
+    }
+    fileNode.append(`
+				break;`);
+}
+
+function compileAction(action: Action, fileNode: CompositeGeneratorNode, pinAllocator: PinAllocator) {
+    if (action.actuator && action.value) {
+        // Digital actuator - use pin allocator
+        pinAllocator.generateDigitalWrite(action.actuator.ref!, action.value.value, fileNode);
+    } else if (action.analogActuator && action.analogValue) {
+        // Analog actuator - use analog brick compiler
+        compileAnalogAction(action, fileNode, pinAllocator);
+    }
+}
 
 /**
  * Compiles a transition into Arduino condition checking code with debouncing.
- * This simplified version handles flat lists of conditions with 'and'/'or' operators.
- * 
+ * Now supports parentheses for logical operator precedence.
+ * This handles both digital bricks (with pin allocation) and analog bricks (with threshold comparison).
+ *
  * @param transition - The transition to compile
  * @param fileNode - The composite generator node to append code to
- * 
+ * @param pinAllocator - The pin allocator for getting allocated pins
+ *
  * @example
- * Given: button1 is HIGH and button2 is HIGH => on
+ * Given: button1 is HIGH and (button2 is HIGH or button3 is HIGH) => on
  * Generates:
  * ```cpp
- * if( (digitalRead(8) == HIGH && digitalRead(10) == HIGH) && 
- *     (millis() - button1LastDebounceTime > debounce && 
- *      millis() - button2LastDebounceTime > debounce) ) {
+ * if( (digitalRead(8) == HIGH && (digitalRead(10) == HIGH || digitalRead(12) == HIGH)) &&
+ *     (millis() - button1LastDebounceTime > debounce) ) {
  *   button1LastDebounceTime = millis();
- *   button2LastDebounceTime = millis();
  *   currentState = on;
  * }
  * ```
  */
-function compileTransition(transition: Transition, fileNode: CompositeGeneratorNode) {
-	// Collect all unique sensors from conditions (only sensors need debouncing)
-	const sensors: Sensor[] = [];
-	for (const condition of transition.conditions) {
-		const brick = condition.brick?.ref;
-		if (brick && 'inputPin' in brick && !sensors.includes(brick)) {
-			sensors.push(brick);
-		}
-	}
+function compileTransition(
+    transition: Transition,
+    fileNode: CompositeGeneratorNode,
+    pinAllocator: PinAllocator
+) {
+    // Collect all unique digital sensors from the expression tree
+    const sensors: Sensor[] = []
+    collectSensors(transition.expression, sensors)
 
-	// Build the condition expression
-	let conditionCode = '';
-	for (let i = 0; i < transition.conditions.length; i++) {
-		const condition = transition.conditions[i];
-		const brick = condition.brick.ref;
+    // Build the condition expression recursively
+    const conditionCode = compileLogicalExpression(transition.expression, pinAllocator)
 
-		// Generate condition based on brick type
-		let condStr = '';
-		if (brick && 'inputPin' in brick) {
-			// Sensor
-			condStr = `digitalRead(${brick.inputPin}) == ${condition.value.value}`;
-		} else if (brick && 'outputPin' in brick) {
-			// Actuator
-			condStr = `digitalRead(${brick.outputPin}) == ${condition.value.value}`;
-		}
+    // Build debounce checks only for digital sensors
+    let debounceCheck = '';
+    if (sensors.length > 0) {
+        const debounceChecks = sensors
+            .map(
+                (sensor) =>
+                    `millis() - ${sensor.name}LastDebounceTime > debounce`
+            )
+            .join(' && ');
+        debounceCheck = ` && (${debounceChecks})`;
+    }
 
-		if (i === 0) {
-			conditionCode = condStr;
-		} else {
-			const operator = transition.operator[i - 1] === 'and' ? '&&' : '||';
-			conditionCode += ` ${operator} ${condStr}`;
-		}
-	}
+    // Generate the complete transition code
+    fileNode.append(`
+					if( (${conditionCode})${debounceCheck} ) {`);
 
-	// Build debounce checks only for sensors
-	let debounceCheck = '';
-	if (sensors.length > 0) {
-		const debounceChecks = sensors.map(sensor =>
-			`millis() - ${sensor.name}LastDebounceTime > debounce`
-		).join(' && ');
-		debounceCheck = ` && (${debounceChecks})`;
-	}
+    // Update debounce times only for digital sensors
+    for (const sensor of sensors) {
+        fileNode.append(`
+						${sensor.name}LastDebounceTime = millis();`);
+    }
 
-	// Generate the complete transition code
-	fileNode.append(`
-			if( (${conditionCode})${debounceCheck} ) {`);
+    // Change state
+    fileNode.append(`
+						currentState = ${transition.next.ref?.name};
+					}
+		`);
+}
 
-	// Update debounce times only for sensors
-	for (const sensor of sensors) {
-		fileNode.append(`
-				${sensor.name}LastDebounceTime = millis();`);
-	}
+/**
+ * Recursively compiles a logical expression into Arduino C++ code
+ */
+function compileLogicalExpression(expr: LogicalExpression, pinAllocator: PinAllocator): string {
+    if (expr.$type === 'BinaryExpression') {
+        const binExpr = expr as BinaryExpression
+        const left = compileLogicalExpression(binExpr.left, pinAllocator)
+        const right = compileLogicalExpression(binExpr.right, pinAllocator)
+        const operator = binExpr.operator === 'and' ? '&&' : '||'
+        // Add parentheses to preserve precedence
+        return `(${left} ${operator} ${right})`
+    } else if (expr.$type === 'Condition') {
+        const condition = expr as Condition
+        return compileCondition(condition, pinAllocator)
+    }
+    return ''
+}
 
-	// Change state
-	fileNode.append(`
-				currentState = ${transition.next.ref?.name};
-			}
-	`);
+/**
+ * Compiles a single condition (digital or analog)
+ */
+function compileCondition(condition: Condition, pinAllocator: PinAllocator): string {
+    if (isAnalogCondition(condition)) {
+        return compileAnalogCondition(condition, pinAllocator)
+    } else if (condition.brick) {
+        const brick = condition.brick.ref
+        if (brick) {
+            const pin = pinAllocator.getPin(brick)
+            return `digitalRead(${pin}) == ${condition.value?.value}`
+        }
+    }
+    return ''
+}
+
+/**
+ * Recursively collects all digital sensors from the expression tree for debouncing
+ */
+function collectSensors(expr: LogicalExpression, sensors: Sensor[]): void {
+    if (expr.$type === 'BinaryExpression') {
+        const binExpr = expr as BinaryExpression
+        collectSensors(binExpr.left, sensors)
+        collectSensors(binExpr.right, sensors)
+    } else if (expr.$type === 'Condition') {
+        const condition = expr as Condition
+        if (condition.brick) {
+            const brick = condition.brick.ref
+            if (brick && brick.$type === 'Sensor' && !sensors.includes(brick)) {
+                sensors.push(brick)
+            }
+        }
+    }
 }
 
 function compileLCDAction(lcdAction: LCDAction, fileNode: CompositeGeneratorNode) {
-	fileNode.append(`
+    fileNode.append(`
 			lcd.clear();
 			lcd.setCursor(0, 0);`);
 
-	for (const part of lcdAction.parts) {
-		if ('text' in part) {
-			// ConstantPart
-			fileNode.append(`
+    for (const part of lcdAction.parts) {
+        if ('text' in part) {
+            // ConstantPart
+            fileNode.append(`
 			lcd.print('${part.text}');`);
-		} else {
-			// BrickStatusPart
-			const brick = part.brick.ref;
-			if (brick && 'inputPin' in brick) {
-				// Sensor
-				fileNode.append(`
+        } else {
+            // BrickStatusPart
+            const brick = part.brick.ref;
+            if (brick && 'inputPin' in brick) {
+                // Sensor
+                fileNode.append(`
 			lcd.print(digitalRead(${brick.inputPin}) == HIGH ? "HIGH" : "LOW");`);
-			} else if (brick && 'outputPin' in brick) {
-				// Actuator
-				fileNode.append(`
+            } else if (brick && 'outputPin' in brick) {
+                // Actuator
+                fileNode.append(`
 			lcd.print(digitalRead(${brick.outputPin}) == HIGH ? "ON" : "OFF");`);
-			}
-		}
-	}
+            }
+        }
+    }
 }
+
+

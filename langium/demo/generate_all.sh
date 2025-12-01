@@ -33,7 +33,12 @@ generate_file "./basic_scenarios/StateBasedAlarm.aml"
 generate_file "./basic_scenarios/MultiStateAlarm.aml"
 
 echo "--- Features ---"
-generate_file "./features_scenarios/LCDDisplay.aml"
+generate_file "./feature_scenarios/DualCheckAlarm_pin_allocation.aml"
+generate_file "./feature_scenarios/HandlingAnalogicalBricks_pin_allocation.aml"
+generate_file "./feature_scenarios/HandlingAnalogicalBricks.aml"
+generate_file "./feature_scenarios/MultiStateAlarm_pin_allocation.aml"
+generate_file "./feature_scenarios/PrecedenceTest.aml"
+generate_file "./feature_scenarios/ReversedPrecedenceTest.aml"
 
 echo "=========================================="
 echo "Generation Summary"
