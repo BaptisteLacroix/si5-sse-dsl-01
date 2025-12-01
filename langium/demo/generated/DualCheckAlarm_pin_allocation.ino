@@ -35,8 +35,7 @@ long button2LastDebounceTime = 0;
 						button2LastDebounceTime = millis();
 						currentState = on;
 					}
-		
-				break;
+		break;
 				case on:
 					digitalWrite(8,HIGH);
 					if( ((digitalRead(9) == LOW || digitalRead(10) == LOW)) && (millis() - button1LastDebounceTime > debounce && millis() - button2LastDebounceTime > debounce) ) {
@@ -44,8 +43,7 @@ long button2LastDebounceTime = 0;
 						button2LastDebounceTime = millis();
 						currentState = off;
 					}
-		
-				break;
+		break;
 		}
 	}
 	

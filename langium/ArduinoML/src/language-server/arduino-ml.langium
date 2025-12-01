@@ -13,7 +13,7 @@ entry App:
 	'}';
 
 Brick:
-	(Actuator | Sensor | AnalogActuator | AnalogSensor | Buzzer);
+	(Actuator | Sensor | AnalogActuator | AnalogSensor | Buzzer | LCD);
 
 Actuator:
 	{infer Actuator}
@@ -31,13 +31,17 @@ AnalogSensor:
 	{infer AnalogSensor}
 	'AnalogSensor' name=ID (':' inputPin=INT)?;
 
+LCD:
+	{infer LCD}
+	'LCD' name=ID;
+
 Buzzer:
 	{infer Buzzer}
 	'Buzzer' name=ID ':' outputPin=INT;
 
 State:
 	name=ID '{'
-		(actions+=(Action | Beep | PlayNote))*
+		(actions+=(Action | LCDAction| Beep | PlayNote))*
 		transitions+=Transition (transitions+=Transition)*
 	'}';
 
@@ -50,6 +54,18 @@ Beep :
 
 PlayNote :
 	buzzer=[Buzzer:ID] 'plays' note=NOTE 'for' duration=INT 'ms';
+
+LCDAction :
+	lcd=[LCD:ID] '<<' parts+=MessagePart ('+' parts+=MessagePart)*;
+
+MessagePart:
+	ConstantPart | BrickStatusPart;
+
+ConstantPart:
+	text=STRING;
+
+BrickStatusPart:
+	brick=[Brick:ID] 'status';
 
 Transition:
 	expression=LogicalExpression '=>' next=[State:ID];
