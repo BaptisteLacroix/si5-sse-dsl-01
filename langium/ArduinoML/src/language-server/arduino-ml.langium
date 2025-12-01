@@ -5,11 +5,11 @@ entry App:
 	'{'
 		'bricks'
 		bricks+=Brick
-		(bricks+=Brick)* 
-		
+		(bricks+=Brick)*
+
 		'states'
 		states+=State
-		( states+=State)* 		
+		( states+=State)*
 	'}';
 
 Brick:
