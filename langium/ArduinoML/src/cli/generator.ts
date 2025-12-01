@@ -13,6 +13,7 @@ import {
 } from '../language-server/generated/ast';
 import { extractDestinationAndName } from './cli-util';
 import { PinAllocator } from './pin-allocator';
+import { PITCHES_DEFINITIONS, compileBuzzer, compileBeep, compilePlayNote } from './buzzer';
 import {
     compileAnalogActuator,
     compileAnalogSensor,
@@ -47,6 +48,7 @@ function compile(app: App, fileNode: CompositeGeneratorNode) {
     const pinAllocator = new PinAllocator(hasLCD);
     pinAllocator.allocatePins(app.bricks);
 
+    fileNode.append(PITCHES_DEFINITIONS, NL);
     fileNode.append(
         `
 //Wiring code generated from an ArduinoML model
@@ -88,6 +90,8 @@ long ${brick.name}LastDebounceTime = 0;
             compileAnalogSensor(brick, fileNode, pinAllocator);
         } else if (brick.$type === 'AnalogActuator') {
             compileAnalogActuator(brick, fileNode, pinAllocator);
+        } else if (brick.$type === 'Buzzer') {
+            compileBuzzer(brick, fileNode);
         } else if (brick.$type === 'Sensor' || brick.$type === 'Actuator') {
             // Use pin allocator for digital bricks
             const pin = pinAllocator.getPin(brick);
@@ -118,15 +122,22 @@ long ${brick.name}LastDebounceTime = 0;
 
 function compileState(state: State, fileNode: CompositeGeneratorNode, pinAllocator: PinAllocator) {
     fileNode.append(`
-				case ` + state.name + `:`);
-    for (const action of state.actions) {
-        compileAction(action, fileNode, pinAllocator);
+				case `+state.name+`:`)
+    for(const action of state.actions){
+        if (action.$type === "Action") {
+            compileAction(action, fileNode, pinAllocator);
+        } else if (action.$type === "Beep") {
+            compileBeep(action, fileNode);
+        } else if (action.$type === "PlayNote") {
+            compilePlayNote(action, fileNode);
+        }
     }
-    if (state.transition !== null) {
-        compileTransition(state.transition, fileNode, pinAllocator);
+    if (state.transitions !== null){
+        for (const transition of state.transitions) {
+            compileTransition(transition, fileNode, pinAllocator);
+        }
     }
-    fileNode.append(`
-				break;`);
+    fileNode.append(`break;`)
 }
 
 function compileAction(action: Action, fileNode: CompositeGeneratorNode, pinAllocator: PinAllocator) {

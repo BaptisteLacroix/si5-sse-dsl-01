@@ -35,12 +35,13 @@
     },
     "main": "./out/extension.js",
     "scripts": {
-        "vscode:prepublish": "npm run build && npm run lint",
-        "build": "tsc -b tsconfig.json",
-        "watch": "tsc -b tsconfig.json --watch",
-        "lint": "eslint src --ext ts",
-        "langium:generate": "langium generate",
-        "langium:watch": "langium generate --watch"
+      "vscode:prepublish": "npm run build && npm run lint",
+      "build": "tsc -b tsconfig.json",
+      "watch": "tsc -b tsconfig.json --watch",
+      "lint": "eslint src --ext ts",
+      "langium:generate": "langium generate",
+      "langium:watch": "langium generate --watch",
+      "generate:all": "for file in ../demo/basic_scenarios/*.aml ../demo/feature_scenarios/*.aml; do node ./bin/cli generate \"$file\"; done"
     },
     "dependencies": {
         "chevrotain": "^10.4.1",
