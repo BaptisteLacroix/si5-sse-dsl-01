@@ -1,0 +1,20 @@
+// Test de priorité avec parenthèses - cas inversé
+// (B or C) and A
+
+app ReversedPrecedenceTest initial state off {
+    bricks
+        Sensor buttonA : 8
+        Sensor buttonB : 9
+        Sensor buttonC : 10
+        Actuator led : 12
+
+    states
+        off {
+            led <= LOW
+            (buttonB is HIGH or buttonC is HIGH) and buttonA is HIGH => on
+        }
+        on {
+            led <= HIGH
+            buttonA is LOW => off
+        }
+}

@@ -43,7 +43,13 @@ Action:
 	analogActuator=[AnalogActuator:ID] '<=' analogValue=AnalogValue;
 
 Transition:
-	conditions+=Condition (operator+=('and' | 'or') conditions+=Condition)* '=>' next=[State:ID];
+	expression=LogicalExpression '=>' next=[State:ID];
+
+LogicalExpression:
+	PrimaryExpression ({infer BinaryExpression.left=current} operator=('and' | 'or') right=PrimaryExpression)*;
+
+PrimaryExpression infers LogicalExpression:
+	'(' LogicalExpression ')' | Condition;
 
 Condition:
 	brick=[Brick:ID] 'is' value=Signal |
