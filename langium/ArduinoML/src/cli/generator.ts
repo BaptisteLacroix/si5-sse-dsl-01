@@ -1,5 +1,5 @@
 import fs from 'fs';
-import {CompositeGeneratorNode, NL, toString} from 'langium';
+import { CompositeGeneratorNode, NL, toString } from 'langium';
 import path from 'path';
 import {
     Action,
@@ -13,8 +13,9 @@ import {
     isLCDAction,
     Transition,
 } from '../language-server/generated/ast';
-import {extractDestinationAndName} from './cli-util';
-import {PinAllocator} from './pin-allocator';
+import { extractDestinationAndName } from './cli-util';
+import { PinAllocator } from './pin-allocator';
+import { PITCHES_DEFINITIONS, compileBuzzer, compileBeep, compilePlayNote } from './buzzer';
 import {
     compileAnalogActuator,
     compileAnalogSensor,
@@ -59,6 +60,7 @@ LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
     const pinAllocator = new PinAllocator(hasLCD);
     pinAllocator.allocatePins(app.bricks);
 
+    fileNode.append(PITCHES_DEFINITIONS, NL);
     fileNode.append(
         `
 //Wiring code generated from an ArduinoML model
@@ -106,6 +108,8 @@ long ${brick.name}LastDebounceTime = 0;
             compileAnalogSensor(brick, fileNode, pinAllocator);
         } else if (brick.$type === 'AnalogActuator') {
             compileAnalogActuator(brick, fileNode, pinAllocator);
+        } else if (brick.$type === 'Buzzer') {
+            compileBuzzer(brick, fileNode);
         } else if (brick.$type === 'Sensor' || brick.$type === 'Actuator') {
             // Use pin allocator for digital bricks
             const pin = pinAllocator.getPin(brick);
@@ -136,19 +140,24 @@ long ${brick.name}LastDebounceTime = 0;
 
 function compileState(state: State, fileNode: CompositeGeneratorNode, pinAllocator: PinAllocator) {
     fileNode.append(`
-				case ` + state.name + `:`);
-    for (const action of state.actions) {
+				case `+state.name+`:`)
+    for(const action of state.actions){
         if (isAction(action)) {
             compileAction(action, fileNode, pinAllocator);
+        } else if (action.$type === "Beep") {
+            compileBeep(action, fileNode);
+        } else if (action.$type === "PlayNote") {
+            compilePlayNote(action, fileNode);
         } else if (isLCDAction(action)) {
             compileLCDAction(action, fileNode);
         }
     }
-    if (state.transition !== null) {
-        compileTransition(state.transition, fileNode, pinAllocator);
+    if (state.transitions !== null){
+        for (const transition of state.transitions) {
+            compileTransition(transition, fileNode, pinAllocator);
+        }
     }
-    fileNode.append(`
-				break;`);
+    fileNode.append(`break;`)
 }
 
 function compileAction(action: Action, fileNode: CompositeGeneratorNode, pinAllocator: PinAllocator) {

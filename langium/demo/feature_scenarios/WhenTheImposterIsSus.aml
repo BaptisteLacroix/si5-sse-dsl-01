@@ -1,0 +1,42 @@
+app AmongUs initial state wait {
+    
+    bricks
+        Buzzer buzzer : 8
+        Sensor button : 11
+
+    states
+    
+        wait {
+            button is HIGH => play
+        }
+        
+        play {
+            buzzer plays C4 for 200 ms
+            buzzer plays DS4 for 200 ms
+            buzzer plays F4 for 200 ms
+            buzzer plays FS4 for 200 ms
+            buzzer plays F4 for 200 ms
+            buzzer plays DS4 for 200 ms
+            buzzer plays C4 for 300 ms
+            buzzer plays AS3 for 200 ms
+            buzzer plays D4 for 200 ms
+            buzzer plays C4 for 400 ms
+
+            buzzer plays C4 for 200 ms
+            buzzer plays DS4 for 200 ms
+            buzzer plays F4 for 200 ms
+            buzzer plays FS4 for 200 ms
+            buzzer plays F4 for 200 ms
+            buzzer plays DS4 for 200 ms
+            buzzer plays FS4 for 200 ms
+            buzzer plays FS4 for 200 ms
+            buzzer plays F4 for 200 ms
+            buzzer plays DS4 for 200 ms
+            buzzer plays FS4 for 200 ms
+            buzzer plays F4 for 200 ms
+            buzzer plays DS4 for 300 ms
+            buzzer plays C4 for 600 ms
+
+            button is LOW => wait
+        }
+}

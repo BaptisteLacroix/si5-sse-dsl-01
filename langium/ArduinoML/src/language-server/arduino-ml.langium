@@ -5,15 +5,15 @@ entry App:
 	'{'
 		'bricks'
 		bricks+=Brick
-		(bricks+=Brick)* 
-		
+		(bricks+=Brick)*
+
 		'states'
 		states+=State
-		( states+=State)* 		
+		( states+=State)*
 	'}';
 
 Brick:
-	(Actuator | Sensor | AnalogActuator | AnalogSensor | LCD);
+	(Actuator | Sensor | AnalogActuator | AnalogSensor | Buzzer | LCD);
 
 Actuator:
 	{infer Actuator}
@@ -35,16 +35,25 @@ LCD:
 	{infer LCD}
 	'LCD' name=ID;
 
+Buzzer:
+	{infer Buzzer}
+	'Buzzer' name=ID ':' outputPin=INT;
+
 State:
 	name=ID '{'
-		(actions+=(Action | LCDAction))*
-		transition=Transition
+		(actions+=(Action | LCDAction| Beep | PlayNote))*
+		transitions+=Transition (transitions+=Transition)*
 	'}';
-
 
 Action:
 	actuator=[Actuator:ID] '<=' value=Signal |
 	analogActuator=[AnalogActuator:ID] '<=' analogValue=AnalogValue;
+
+Beep :
+	buzzer=[Buzzer:ID] 'makes' repetition=INT duration=BeepDuration 'bips';
+
+PlayNote :
+	buzzer=[Buzzer:ID] 'plays' note=NOTE 'for' duration=INT 'ms';
 
 LCDAction :
 	lcd=[LCD:ID] '<<' parts+=MessagePart ('+' parts+=MessagePart)*;
@@ -77,8 +86,14 @@ Signal:
 AnalogValue:
 	intValue=INT | sensorValue=[AnalogSensor:ID];
 
+BeepDuration :
+	value=(LONG | SHORT);
+
 terminal HIGH: 'HIGH';
 terminal LOW: 'LOW';
+terminal LONG: 'LONG';
+terminal SHORT: 'SHORT';
+terminal NOTE: /[A-G]S?[0-8]/;
 
 hidden terminal WS: /\s+/;
 terminal ID: /[_a-zA-Z][\w_]*/;
