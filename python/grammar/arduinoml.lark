@@ -1,0 +1,61 @@
+// ============================================================================
+// ArduinoML DSL Grammar Definition (Lark Parser)
+// ============================================================================
+// This grammar defines the syntax for the ArduinoML Python DSL
+// using Lark's EBNF-style notation.
+// ============================================================================
+
+// Start rule
+?start: application
+
+// Application definition
+application: "AppBuilder" "(" string ")" brick_decl* state_decl+ "." "get_contents" "(" ")"
+
+// Brick declarations (sensors and actuators)
+?brick_decl: sensor_decl | actuator_decl
+
+sensor_decl: "." "sensor" "(" string ")" "." "on_pin" "(" number ")"
+
+actuator_decl: "." "actuator" "(" string ")" "." "on_pin" "(" number ")"
+
+// State declarations
+state_decl: "." "state" "(" string ")" action+ transition
+
+// State actions
+action: "." "set" "(" string ")" "." "to" "(" signal ")"
+
+// Transitions
+?transition: simple_transition
+           | and_transition
+           | or_transition
+
+simple_transition: "." "when" "(" string ")" "." "has_value" "(" signal ")" "." "go_to_state" "(" string ")"
+
+and_transition: "." "when_all" "(" condition_list ")" "." "go_to_state" "(" string ")"
+
+or_transition: "." "when_any" "(" condition_list ")" "." "go_to_state" "(" string ")"
+
+// Condition lists for AND/OR transitions
+condition_list: condition_tuple ("," condition_tuple)*
+
+condition_tuple: "(" string "," signal ")"
+
+// Signals (HIGH/LOW)
+signal: "HIGH" | "LOW"
+
+// Primitives (strings and numbers)
+string: ESCAPED_STRING
+number: NUMBER
+
+// Terminals
+NUMBER: /\d+/
+
+// Whitespace and comments
+%import common.ESCAPED_STRING
+%import common.WS
+%import common.CPP_COMMENT
+%import common.C_COMMENT
+
+%ignore WS
+%ignore CPP_COMMENT
+%ignore C_COMMENT

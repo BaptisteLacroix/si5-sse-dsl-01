@@ -1,0 +1,77 @@
+@startuml
+!define ABSTRACT_CLASS abstract class
+
+skinparam classAttributeIconSize 0
+skinparam classFontStyle bold
+skinparam backgroundColor white
+
+title ArduinoML
+
+abstract class NamedElement {
+    + name: String
+}
+
+class App { }
+
+abstract class Brick {
+    + pin: Integer
+}
+
+class Actuator { }
+class Sensor   { }
+
+class State { }
+
+class Action {
+    + value: SIGNAL
+}
+
+class Transition {
+    + value: SIGNAL
+}
+
+enum SIGNAL {
+    HIGH
+    LOW
+}
+
+interface LogicalExpression {
+}
+
+class BinaryExpression {
+    + operator: String  <<and/or>>
+}
+
+class PrimaryExpression {
++ brick: Integer
++ value: Signal
+}
+
+BinaryExpression --|> LogicalExpression
+PrimaryExpression --|> LogicalExpression
+
+LogicalExpression "1" <-- "1" BinaryExpression : left
+LogicalExpression "1" <-- "1" BinaryExpression : right
+
+PrimaryExpression "1" --> "0..1" LogicalExpression : inner
+
+NamedElement <|-- App
+NamedElement <|-- State
+NamedElement <|-- Brick
+
+App "1" *-- "1..*" State : states
+App "1" --> "1" State : initial
+
+State "1" *-- "1..*" Action : actions
+State "1" *-- "1" Transition : action
+State "1" <-- "1" Transition : next
+
+Transition "1" --> "1" Sensor   : sensor
+Action      "1" --> "1" Actuator : actuator
+
+App "1" *-- "1..*" Brick : bricks
+Sensor   --|> Brick
+Actuator --|> Brick
+
+Transition "1" --> "1" LogicalExpression : expression
+@enduml
