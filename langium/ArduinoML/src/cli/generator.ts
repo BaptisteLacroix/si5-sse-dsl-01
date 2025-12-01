@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { CompositeGeneratorNode, NL, toString } from 'langium';
+import {CompositeGeneratorNode, NL, toString} from 'langium';
 import path from 'path';
 import {
     Action,
@@ -9,13 +9,12 @@ import {
     LogicalExpression,
     Sensor,
     State,
-    LCDAction,
     isAction,
     isLCDAction,
     Transition,
 } from '../language-server/generated/ast';
-import { extractDestinationAndName } from './cli-util';
-import { PinAllocator } from './pin-allocator';
+import {extractDestinationAndName} from './cli-util';
+import {PinAllocator} from './pin-allocator';
 import {
     compileAnalogActuator,
     compileAnalogSensor,
@@ -23,6 +22,7 @@ import {
     compileAnalogCondition,
     isAnalogCondition,
 } from './analog-bricks-compiler';
+import {compileLCDAction} from "./lcd";
 
 export function generateInoFile(
     app: App,
@@ -36,7 +36,7 @@ export function generateInoFile(
     compile(app, fileNode)
 
     if (!fs.existsSync(data.destination)) {
-        fs.mkdirSync(data.destination, { recursive: true })
+        fs.mkdirSync(data.destination, {recursive: true})
     }
     fs.writeFileSync(generatedFilePath, toString(fileNode))
     return generatedFilePath
@@ -274,31 +274,3 @@ function collectSensors(expr: LogicalExpression, sensors: Sensor[]): void {
         }
     }
 }
-
-function compileLCDAction(lcdAction: LCDAction, fileNode: CompositeGeneratorNode) {
-    fileNode.append(`
-			lcd.clear();
-			lcd.setCursor(0, 0);`);
-
-    for (const part of lcdAction.parts) {
-        if ('text' in part) {
-            // ConstantPart
-            fileNode.append(`
-			lcd.print('${part.text}');`);
-        } else {
-            // BrickStatusPart
-            const brick = part.brick.ref;
-            if (brick && 'inputPin' in brick) {
-                // Sensor
-                fileNode.append(`
-			lcd.print(digitalRead(${brick.inputPin}) == HIGH ? "HIGH" : "LOW");`);
-            } else if (brick && 'outputPin' in brick) {
-                // Actuator
-                fileNode.append(`
-			lcd.print(digitalRead(${brick.outputPin}) == HIGH ? "ON" : "OFF");`);
-            }
-        }
-    }
-}
-
-
