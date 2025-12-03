@@ -1,138 +1,175 @@
 package groovuinoml.dsl
 
-import groovuinoml.model.LogicalExpression
 
-import groovuinoml.model.PrimaryExpression
 import io.github.mosser.arduinoml.kernel.behavioral.Action
+import io.github.mosser.arduinoml.kernel.behavioral.BinaryExpression
+import io.github.mosser.arduinoml.kernel.behavioral.LogicalExpression
+import io.github.mosser.arduinoml.kernel.behavioral.Operators
+import io.github.mosser.arduinoml.kernel.behavioral.PrimaryExpression
 import io.github.mosser.arduinoml.kernel.behavioral.State
 import io.github.mosser.arduinoml.kernel.structural.Actuator
 import io.github.mosser.arduinoml.kernel.structural.Sensor
 import io.github.mosser.arduinoml.kernel.structural.SIGNAL
+import sun.security.jgss.GSSUtil
 
 abstract class GroovuinoMLBasescript extends Script {
-//	public static Number getDuration(Number number, TimeUnit unit) throws IOException {
-//		return number * unit.inMillis;
-//	}
 
-	// sensor "name" pin n
-	def sensor(String name) {
-		[pin: { n -> ((GroovuinoMLBinding)this.getBinding()).getGroovuinoMLModel().createSensor(name, n) },
-		onPin: { n -> ((GroovuinoMLBinding)this.getBinding()).getGroovuinoMLModel().createSensor(name, n)}]
-	}
-	
-	// actuator "name" pin n
-	def actuator(String name) {
-		[pin: { n -> ((GroovuinoMLBinding)this.getBinding()).getGroovuinoMLModel().createActuator(name, n) }]
-	}
-	
-	// state "name" means actuator becomes signal [and actuator becomes signal]*n
-	def state(String name) {
-		List<Action> actions = new ArrayList<Action>()
-		((GroovuinoMLBinding) this.getBinding()).getGroovuinoMLModel().createState(name, actions)
-		// recursive closure to allow multiple and statements
-		def closure
-		closure = { actuator -> 
-			[becomes: { signal ->
-				Action action = new Action()
-				action.setActuator(actuator instanceof String ? (Actuator)((GroovuinoMLBinding)this.getBinding()).getVariable(actuator) : (Actuator)actuator)
-				action.setValue(signal instanceof String ? (SIGNAL)((GroovuinoMLBinding)this.getBinding()).getVariable(signal) : (SIGNAL)signal)
-				actions.add(action)
-				[and: closure]
-			}]
+
+	def resolve(obj) {
+		if (obj instanceof String) {
+			return ((GroovuinoMLBinding) this.binding).getVariable(obj)
 		}
-		[means: closure]
+		return obj
+	}
+
+
+	def sensor(String name) {
+		println "Defining sensor: $name"
+		return [
+				pin: { n ->
+					((GroovuinoMLBinding) this.binding)
+							.getGroovuinoMLModel()
+							.createSensor(name, n)
+				},
+				onPin: { n ->
+					((GroovuinoMLBinding) this.binding)
+							.getGroovuinoMLModel()
+							.createSensor(name, n)
+				}
+		]
+	}
+
+	def actuator(String name) {
+		println "Defining actuator: $name"
+		return [
+				pin: { n ->
+					((GroovuinoMLBinding) this.binding)
+							.getGroovuinoMLModel()
+							.createActuator(name, n)
+				}
+		]
+	}
+
+	def state(String name) {
+		println "Defining state: $name"
+		List<Action> actions = new ArrayList<Action>()
+		((GroovuinoMLBinding) this.binding)
+				.getGroovuinoMLModel()
+				.createState(name, actions)
+
+		def closure
+		closure = { actuator ->
+			return [
+					becomes: { signal ->
+						println "Adding action to state $name: set $actuator to $signal"
+						Action action = new Action()
+						action.setActuator(actuator instanceof String ?
+								(Actuator) resolve(actuator) :
+								actuator)
+						action.setValue(signal instanceof String ?
+								(SIGNAL) resolve(signal) :
+								signal)
+						println "Action created: set ${action.getActuator().getName()} to ${action.getValue()}"
+						actions.add(action)
+						return [and: closure]
+					}
+			]
+		}
+
+		return [means: closure]
 	}
 
 	def condition = { brick ->
-    return [
-        becomes: { signal ->
-            def b = brick instanceof String ?
-                    (Sensor)((GroovuinoMLBinding)this.binding).getVariable(brick) :
-                    brick
+		return [
+				becomes: { signal ->
+					println "Creating primary expression: $brick becomes $signal"
+					def b = resolve(brick)
+					println "Resolved brick: $b"
+					def s = resolve(signal)
+					println "Resolved signal: $s"
+					return new PrimaryExpression(b, s)
+				}
+		]
+	}
 
-            def s = signal instanceof String ?
-                    (SIGNAL)((GroovuinoMLBinding)this.binding).getVariable(signal) :
-                    signal
+	def and = { LogicalExpression e1, LogicalExpression e2 ->
+		println "Creating AND expression"
+		return new BinaryExpression(e1, Operators.AND,  e2)
+	}
 
-            return new PrimaryExpression(b, s)
-        }
-    ]
-}
+	def or = { LogicalExpression e1, LogicalExpression e2 ->
+		println "Creating OR expression"
+		return new BinaryExpression(e1, Operators.OR,  e2)
+	}
 
-	
-	// initial state
+
 	def initial(state) {
-		((GroovuinoMLBinding) this.getBinding()).getGroovuinoMLModel().setInitialState(state instanceof String ? (State)((GroovuinoMLBinding)this.getBinding()).getVariable(state) : (State)state)
+		((GroovuinoMLBinding) this.binding)
+				.getGroovuinoMLModel()
+				.setInitialState(resolve(state))
 	}
-	
-// =======================================================
-// from <state1> to <state2> when <condition>
-// from <state1> to <state2> when <sensor> becomes <signal>
-// from <state1> to <state2> after <delay>
-// =======================================================
 
-def resolve(obj) {
-    if (obj instanceof String)
-        return ((GroovuinoMLBinding)this.binding).getVariable(obj)
-    return obj
-}
+	def from(state1) {
+		return [
+				to: { state2 ->
+					return [
 
-def from(state1) {
-    return [
-        to: { state2 ->
-            return [
-                when: { cond ->
-                    if (cond instanceof LogicalExpression) {
+							when: { cond ->
+								println "Defining transition from $state1 to $state2 with condition $cond"
+								if (cond instanceof LogicalExpression) {
+									println "Condition is a LogicalExpression"
+									((GroovuinoMLBinding) this.binding)
+											.getGroovuinoMLModel()
+											.createTransition(
+													(State) resolve(state1),
+													(State) resolve(state2),
+													cond
+											)
+								}
 
-                        ((GroovuinoMLBinding) this.binding)
-                            .getGroovuinoMLModel()
-                            .createTransition(
-                                (State) resolve(state1),
-                                (State) resolve(state2),
-                                cond
-                            )
+								else {
+									return [
+											becomes: { signal ->
+												println "Defining transition from $state1 to $state2 when $cond becomes $signal"
+												((GroovuinoMLBinding) this.binding)
+														.getGroovuinoMLModel()
+														.createTransition(
+																(State) resolve(state1),
+																(State) resolve(state2),
+																(Sensor) resolve(cond),
+																(SIGNAL) resolve(signal)
+														)
+											}
+									]
+								}
+							},
+							after: { delay ->
+								println "Defining transition from $state1 to $state2 after delay $delay"
+								((GroovuinoMLBinding) this.binding)
+										.getGroovuinoMLModel()
+										.createTransition(
+												(State) resolve(state1),
+												(State) resolve(state2),
+												delay
+										)
+							}
+					]
+				}
+		]
+	}
 
-                    } else {
-                        return [
-                            becomes: { signal ->
-
-                                ((GroovuinoMLBinding) this.binding)
-                                    .getGroovuinoMLModel()
-                                    .createTransition(
-                                        (State) resolve(state1),
-                                        (State) resolve(state2),
-                                        (Sensor) resolve(cond),
-                                        (SIGNAL) resolve(signal)
-                                    )
-                            }
-                        ]
-                    }
-                },
-                after: { delay ->
-                    ((GroovuinoMLBinding) this.binding)
-                        .getGroovuinoMLModel()
-                        .createTransition(
-                            (State) resolve(state1),
-                            (State) resolve(state2),
-                            delay
-                        )
-                }
-            ]
-        }
-    ]
-}
-
-	
-	// export name
 	def export(String name) {
-		println(((GroovuinoMLBinding) this.getBinding()).getGroovuinoMLModel().generateCode(name).toString())
+		println(
+				((GroovuinoMLBinding) this.binding)
+						.getGroovuinoMLModel()
+						.generateCode(name)
+						.toString()
+		)
 	}
-	
-	// disable run method while running
 	int count = 0
 	abstract void scriptBody()
 	def run() {
-		if(count == 0) {
+		if (count == 0) {
 			count++
 			scriptBody()
 		} else {

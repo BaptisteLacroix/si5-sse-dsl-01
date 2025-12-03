@@ -18,6 +18,7 @@ public abstract class Visitor<T> {
 
 	public abstract void visit(Actuator actuator);
 	public abstract void visit(Sensor sensor);
+	public abstract void visit(LogicalExpression expression);
 
 
 	/***********************

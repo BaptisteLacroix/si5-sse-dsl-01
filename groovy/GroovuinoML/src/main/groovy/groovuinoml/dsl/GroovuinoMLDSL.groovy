@@ -16,7 +16,7 @@ class GroovuinoMLDSL {
 		binding = new GroovuinoMLBinding()
 		binding.setGroovuinoMLModel(new GroovuinoMLModel(binding));
 		configuration = getDSLConfiguration()
-		configuration.setScriptBaseClass("main.groovy.groovuinoml.dsl.GroovuinoMLBasescript")
+		configuration.setScriptBaseClass("groovuinoml.dsl.GroovuinoMLBasescript")
 		shell = new GroovyShell(configuration)
 		
 		binding.setVariable("high", SIGNAL.HIGH)

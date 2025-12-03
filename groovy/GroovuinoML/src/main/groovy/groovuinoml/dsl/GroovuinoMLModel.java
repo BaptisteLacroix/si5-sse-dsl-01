@@ -16,7 +16,9 @@ public class GroovuinoMLModel {
 	private List<Brick> bricks;
 	private List<State> states;
 	private State initialState;
-	
+	private List<Transition> transitions = new ArrayList<>();
+
+
 	private Binding binding;
 	
 	public GroovuinoMLModel(Binding binding) {
@@ -57,6 +59,10 @@ public class GroovuinoMLModel {
 		transition.setValue(value);
 		from.setTransition(transition);
 	}
+
+
+
+
 
 	public void createTransition(State from, State to, int delay) {
 		TimeTransition transition = new TimeTransition();

@@ -4,6 +4,8 @@ import io.github.mosser.arduinoml.kernel.App;
 import io.github.mosser.arduinoml.kernel.behavioral.*;
 import io.github.mosser.arduinoml.kernel.structural.*;
 
+import static io.github.mosser.arduinoml.kernel.behavioral.Operators.*;
+
 /**
  * Quick and dirty visitor to support the generation of Wiring code
  */
@@ -148,5 +150,48 @@ public class ToWiring extends Visitor<StringBuffer> {
 			return;
 		}
 	}
+
+	@Override
+	public void visit(LogicalExpression expression) {
+		// The generation of logical expressions occurs only in PASS.TWO
+		if (context.get("pass") != PASS.TWO) {
+			return;
+		}
+
+		String compiled = compileLogicalExpression(expression);
+		w(compiled);
+	}
+
+	/**
+	 * Recursively compiles a logical expression to Arduino C++ code.
+	 */
+	private String compileLogicalExpression(LogicalExpression expr) {
+
+		// -------- BinaryExpression --------
+		System.out.println("Compiling expression: " + expr);
+		if (expr instanceof BinaryExpression) {
+			BinaryExpression bin = (BinaryExpression) expr;
+
+			String left = compileLogicalExpression(bin.getLeft());
+			String right = compileLogicalExpression(bin.getRight());
+
+			return "(" + left + " " + bin.getOperator() + " " + right + ")";
+		}
+
+		// -------- Condition --------
+		if (expr instanceof PrimaryExpression) {
+			PrimaryExpression cond = (PrimaryExpression) expr;
+
+			// analog support could be added here
+			if (cond.getBrick() != null && cond.getBrick() instanceof Sensor) {
+				Sensor sensor = (Sensor) cond.getBrick();
+				return "digitalRead(" + sensor.getPin() + ") == " + cond.getValue();
+			}
+		}
+
+		// default
+		return "";
+	}
+
 
 }
