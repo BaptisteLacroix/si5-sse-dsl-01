@@ -1,6 +1,7 @@
-package main.groovy.groovuinoml.dsl
+package groovuinoml.dsl
 
 import io.github.mosser.arduinoml.kernel.behavioral.TimeUnit
+import groovuinoml.dsl.GroovuinoMLModel
 import org.codehaus.groovy.control.CompilerConfiguration
 import org.codehaus.groovy.control.customizers.SecureASTCustomizer
 import io.github.mosser.arduinoml.kernel.structural.SIGNAL

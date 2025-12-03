@@ -1,9 +1,10 @@
-package main.groovy.groovuinoml.dsl;
+package groovuinoml.dsl;
 
 import java.util.Map;
 
 import groovy.lang.Binding;
 import groovy.lang.Script;
+
 
 public class GroovuinoMLBinding extends Binding {
 	// can be useful to return the script in case of syntax trick
