@@ -14,14 +14,14 @@ public abstract class Visitor<T> {
 	public abstract void visit(State state);
 	public abstract void visit(SignalTransition transition);
 	public abstract void visit(TimeTransition transition);
+	public abstract void visit(LogicalTransition transition);
 	public abstract void visit(Action action);
 
 	public abstract void visit(Actuator actuator);
 	public abstract void visit(Sensor sensor);
 	public abstract void visit(LogicalExpression expression);
 
-
-	/***********************
+    /***********************
 	 ** Helper mechanisms **
 	 ***********************/
 
@@ -34,4 +34,3 @@ public abstract class Visitor<T> {
 	}
 
 }
-

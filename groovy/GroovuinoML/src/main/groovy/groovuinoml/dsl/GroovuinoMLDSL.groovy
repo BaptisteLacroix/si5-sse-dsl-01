@@ -66,5 +66,6 @@ class GroovuinoMLDSL {
 		script.setBinding(binding)
 		
 		script.run()
+        script.export()
 	}
 }
