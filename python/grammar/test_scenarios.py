@@ -3,15 +3,10 @@ Test script to validate all ArduinoML scenarios
 """
 
 import sys
-from pathlib import Path
-
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from grammar.validator import ScenarioValidator
 
 # Import scenario modules
 from demo.basic_scenarios import scenarios as basic_scenarios
+from grammar.validator import ScenarioValidator
 
 
 def test_basic_scenarios():
@@ -42,4 +37,3 @@ def test_basic_scenarios():
 if __name__ == '__main__':
     success = test_basic_scenarios()
     sys.exit(0 if success else 1)
-

@@ -5,7 +5,7 @@ This module provides validation functionality for ArduinoML scenario files.
 
 import sys
 import inspect
-from lark_parser import ArduinoMLParser
+from bnf_parser import ArduinoMLBNFParser
 from semantic_validator import validate_semantics
 
 
@@ -13,7 +13,7 @@ class ScenarioValidator:
     """Validator for ArduinoML scenarios"""
 
     def __init__(self, check_semantics=True):
-        self.parser = ArduinoMLParser()
+        self.parser = ArduinoMLBNFParser()
         self.results = []
         self.check_semantics = check_semantics
 

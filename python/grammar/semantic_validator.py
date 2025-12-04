@@ -3,7 +3,7 @@ Semantic Validator for ArduinoML DSL
 This module performs semantic validation beyond syntax checking.
 """
 
-from lark import Tree, Token
+from bnf_parser import ParseNode
 
 
 class SemanticValidator:
@@ -22,7 +22,7 @@ class SemanticValidator:
         Perform semantic validation on a parse tree
 
         Args:
-            parse_tree: Lark parse tree from successful syntax parsing
+            parse_tree: ParseNode from BNF parser
 
         Returns:
             Tuple of (is_valid: bool, errors: list, warnings: list)
@@ -44,48 +44,46 @@ class SemanticValidator:
 
     def _visit(self, node):
         """Visit a node in the parse tree"""
-        if isinstance(node, Tree):
-            method_name = f'_visit_{node.data}'
-            if hasattr(self, method_name):
-                getattr(self, method_name)(node)
-            else:
-                # Visit children by default
-                for child in node.children:
-                    self._visit(child)
-        # Token nodes don't need visiting
+        if not isinstance(node, ParseNode):
+            return
+
+        method_name = f'_visit_{node.type}'
+        if hasattr(self, method_name):
+            getattr(self, method_name)(node)
+        else:
+            # Visit children by default
+            for child in node.children:
+                self._visit(child)
 
     def _visit_application(self, node):
         """Visit application node and extract app name"""
-        # Extract app name from first string token
+        # Extract app name
         for child in node.children:
-            if isinstance(child, Tree) and child.data == 'string':
-                for token in child.children:
-                    if isinstance(token, Token) and token.type == 'ESCAPED_STRING':
-                        self.app_name = token.value.strip('"\'')
-                        if not self.app_name:
-                            self.errors.append("Application name cannot be empty")
-                        break
+            if child.type == 'app_name':
+                self.app_name = child.value
+                if not self.app_name:
+                    self.errors.append("Application name cannot be empty")
                 break
 
         # Visit all children to collect bricks and states
         for child in node.children:
             self._visit(child)
 
-    def _visit_sensor_decl(self, node):
+    def _visit_bricks(self, node):
+        """Visit bricks container"""
+        for child in node.children:
+            self._visit(child)
+
+    def _visit_sensor(self, node):
         """Visit sensor declaration"""
         name = None
         pin = None
 
         for child in node.children:
-            if isinstance(child, Tree):
-                if child.data == 'string':
-                    for token in child.children:
-                        if isinstance(token, Token) and token.type == 'ESCAPED_STRING':
-                            name = token.value.strip('"\'')
-                elif child.data == 'number':
-                    for token in child.children:
-                        if isinstance(token, Token) and token.type == 'NUMBER':
-                            pin = int(token.value)
+            if child.type == 'name':
+                name = child.value
+            elif child.type == 'pin':
+                pin = child.value
 
         if name:
             if name in self.bricks:
@@ -95,21 +93,16 @@ class SemanticValidator:
             else:
                 self.bricks[name] = 'sensor'
 
-    def _visit_actuator_decl(self, node):
+    def _visit_actuator(self, node):
         """Visit actuator declaration"""
         name = None
         pin = None
 
         for child in node.children:
-            if isinstance(child, Tree):
-                if child.data == 'string':
-                    for token in child.children:
-                        if isinstance(token, Token) and token.type == 'ESCAPED_STRING':
-                            name = token.value.strip('"\'')
-                elif child.data == 'number':
-                    for token in child.children:
-                        if isinstance(token, Token) and token.type == 'NUMBER':
-                            pin = int(token.value)
+            if child.type == 'name':
+                name = child.value
+            elif child.type == 'pin':
+                pin = child.value
 
         if name:
             if name in self.bricks:
@@ -119,23 +112,30 @@ class SemanticValidator:
             else:
                 self.bricks[name] = 'actuator'
 
-    def _visit_state_decl(self, node):
+    def _visit_states(self, node):
+        """Visit states container"""
+        for child in node.children:
+            self._visit(child)
+
+    def _visit_state(self, node):
         """Visit state declaration"""
         state_name = None
 
         for child in node.children:
-            if isinstance(child, Tree) and child.data == 'string':
-                for token in child.children:
-                    if isinstance(token, Token) and token.type == 'ESCAPED_STRING':
-                        state_name = token.value.strip('"\'')
-                        if state_name in self.states:
-                            self.errors.append(f"Duplicate state name '{state_name}'")
-                        else:
-                            self.states.add(state_name)
-                        break
+            if child.type == 'name':
+                state_name = child.value
+                if state_name in self.states:
+                    self.errors.append(f"Duplicate state name '{state_name}'")
+                else:
+                    self.states.add(state_name)
                 break
 
         # Visit children to check actions and transitions
+        for child in node.children:
+            self._visit(child)
+
+    def _visit_actions(self, node):
+        """Visit actions container"""
         for child in node.children:
             self._visit(child)
 
@@ -145,15 +145,10 @@ class SemanticValidator:
         signal_value = None
 
         for child in node.children:
-            if isinstance(child, Tree):
-                if child.data == 'string':
-                    for token in child.children:
-                        if isinstance(token, Token) and token.type == 'ESCAPED_STRING':
-                            actuator_name = token.value.strip('"\'')
-                elif child.data == 'signal':
-                    for token in child.children:
-                        if isinstance(token, Token):
-                            signal_value = token.value
+            if child.type == 'actuator':
+                actuator_name = child.value
+            elif child.type == 'signal':
+                signal_value = child.value
 
         if actuator_name:
             if actuator_name not in self.bricks:
@@ -175,23 +170,14 @@ class SemanticValidator:
         sensor_name = None
         target_state = None
         signal_value = None
-        string_count = 0
 
         for child in node.children:
-            if isinstance(child, Tree):
-                if child.data == 'string':
-                    for token in child.children:
-                        if isinstance(token, Token) and token.type == 'ESCAPED_STRING':
-                            value = token.value.strip('"\'')
-                            if string_count == 0:
-                                sensor_name = value
-                            elif string_count == 1:
-                                target_state = value
-                            string_count += 1
-                elif child.data == 'signal':
-                    for token in child.children:
-                        if isinstance(token, Token):
-                            signal_value = token.value
+            if child.type == 'sensor':
+                sensor_name = child.value
+            elif child.type == 'signal':
+                signal_value = child.value
+            elif child.type == 'next_state':
+                target_state = child.value
 
         if sensor_name:
             if sensor_name not in self.bricks:
@@ -224,32 +210,29 @@ class SemanticValidator:
         target_state = None
 
         for child in node.children:
-            if isinstance(child, Tree):
-                if child.data == 'string':
-                    for token in child.children:
-                        if isinstance(token, Token) and token.type == 'ESCAPED_STRING':
-                            target_state = token.value.strip('"\'')
-                else:
-                    self._visit(child)
+            if child.type == 'next_state':
+                target_state = child.value
+            else:
+                self._visit(child)
 
         if target_state:
             self.target_states.append(target_state)
 
-    def _visit_condition_tuple(self, node):
+    def _visit_conditions(self, node):
+        """Visit conditions container"""
+        for child in node.children:
+            self._visit(child)
+
+    def _visit_condition(self, node):
         """Visit condition tuple in AND/OR transitions"""
         sensor_name = None
         signal_value = None
 
         for child in node.children:
-            if isinstance(child, Tree):
-                if child.data == 'string':
-                    for token in child.children:
-                        if isinstance(token, Token) and token.type == 'ESCAPED_STRING':
-                            sensor_name = token.value.strip('"\'')
-                elif child.data == 'signal':
-                    for token in child.children:
-                        if isinstance(token, Token):
-                            signal_value = token.value
+            if child.type == 'sensor':
+                sensor_name = child.value
+            elif child.type == 'signal':
+                signal_value = child.value
 
         if sensor_name:
             if sensor_name not in self.bricks:
@@ -280,7 +263,7 @@ def validate_semantics(parse_tree):
     Convenience function to validate semantics
 
     Args:
-        parse_tree: Lark parse tree
+        parse_tree: ParseNode from BNF parser
 
     Returns:
         Tuple of (is_valid: bool, errors: list, warnings: list)
