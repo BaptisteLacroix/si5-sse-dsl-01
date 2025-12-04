@@ -22,8 +22,6 @@ class AppStringBuilder:
         :return: String
         """
         # add a line continuation after each line but the last
-        from pyArduinoML.methodchaining.AppBuilder import AppBuilder
-        from pyArduinoML.model.SIGNAL import HIGH, LOW
         program = " \\\n".join(self.value.split('\n'))
         program += " \\\n" + ".get_contents()"
         app = eval(program)
