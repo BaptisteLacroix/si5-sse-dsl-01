@@ -4,3 +4,19 @@ cours/
 .idea/
 .vscode/
 .DS_Store
+
+# MPS
+mps/**/.DS_Store
+mps/**/classes_gen/
+*.class
+mps/**/source_gen.caches/
+mps/**/.mps/
+mps/**/*.iml
+mps/**/*.ipr
+mps/**/*.iws
+mps/**/build/
+mps/**/out/
+mps/**/tmp/
+*.dmg
+*.zip
+!mps/**/lib/*.jar
