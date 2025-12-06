@@ -98,7 +98,7 @@ Generated file: `Multi_State_Alarm.ino`
 To generate all scenarios and automatically save them as `.ino` files:
 
 ```bash
-cd C:\Users\bapti\OneDrive\Documents\Ecole\Polytech\Semestre9_bis\si5-sse-dsl-01\python
+cd %ABSOLUTE_PATH_TO_PROJECT%/si5-sse-dsl-01\python
 set PYTHONPATH=%CD%
 python demo\basic_scenarios\scenarios.py
 ```
