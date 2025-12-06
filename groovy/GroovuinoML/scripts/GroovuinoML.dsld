@@ -36,8 +36,13 @@ contribute(currentType(subType('groovy.lang.Script'))) {
 	method type: Script, name: 'to', params: [stateName:String], doc: 'Define second state of a Transition'
 	method type: Script, name: 'when', params: [sensor:Object], doc: 'Identify a Sensor that triggers the Transition'
 	method type: Script, name: 'when', params: [sensorName:String], doc: 'Identify a Sensor that triggers the Transition'
-	method type: Script, name: 'and', params: [sensor:Object], doc: 'Define another Sensor to triggers the Transition'
-	method type: Script, name: 'and', params: [sensorName:String], doc: 'Define another Sensor to triggers the Transition'
+	method type: void, name: 'after', params: [delay:Integer], doc: 'Define a timed transition with delay in milliseconds'
+	method type: Script, name: 'and', params: [sensor:Object], doc: 'Define another Sensor to triggers the Transition with AND logic'
+	method type: Script, name: 'and', params: [sensorName:String], doc: 'Define another Sensor to triggers the Transition with AND logic'
+	method type: Script, name: 'or', params: [sensor:Object], doc: 'Define another Sensor to triggers the Transition with OR logic'
+	method type: Script, name: 'or', params: [sensorName:String], doc: 'Define another Sensor to triggers the Transition with OR logic'
+	method type: Script, name: 'condition', params: [brick:Object], doc: 'Create a logical expression for complex conditions'
+	method type: Script, name: 'condition', params: [brickName:String], doc: 'Create a logical expression for complex conditions'
 
 	method type: void, name: 'export', params: [name:String], doc: 'Export the Arduino Script and define its name'
 }
