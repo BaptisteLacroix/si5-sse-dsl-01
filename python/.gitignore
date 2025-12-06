@@ -1,0 +1,6 @@
+pyArduinoML/__pycache__/
+pyArduinoML/model/__pycache__/
+pyArduinoML/methodchaining/__pycache__/
+
+.vscode/
+.idea/
