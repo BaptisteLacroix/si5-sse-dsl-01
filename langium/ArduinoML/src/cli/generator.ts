@@ -28,7 +28,6 @@ import {
     validateMachineConfiguration,
     generateMultiMachineHeader,
     generateMultiMachineLoop,
-    generateMachineStateTransition,
 } from './multi-machine-compiler';
 import {compileLCDAction} from "./lcd";
 
@@ -75,7 +74,11 @@ LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 
     if (hasMultipleMachines(app)) {
         generateMultiMachineHeader(app, fileNode);
-        fileNode.append(pinAllocator.getAllocationSummary(), NL);
+        generateDebounceVariables(app, fileNode);
+        generateSetup(app, fileNode, pinAllocator, hasLCD);
+        generateMultiMachineLoop(app, fileNode, (state, machineName) => {
+            compileState(state, fileNode, pinAllocator, machineName);
+        });
     } else {
         fileNode.append(
             `
@@ -97,10 +100,27 @@ STATE currentState = ` +
         NL
     );
 
-    // Generate debounce variables only for digital sensors (analog sensors don't need debouncing)
+    generateDebounceVariables(app, fileNode);
+    generateSetup(app, fileNode, pinAllocator, hasLCD);
+
+    fileNode.append(`
+	void loop() {
+			switch(currentState){`, NL);
+
+    for (const state of app.states) {
+        compileState(state, fileNode, pinAllocator);
+    }
+
+    fileNode.append(`
+		}
+	}
+	`, NL);
+    }
+}
+
+function generateDebounceVariables(app: App, fileNode: CompositeGeneratorNode): void {
     for (const brick of app.bricks) {
         if (brick.$type === 'Sensor') {
-            // Digital sensor needs debounce
             fileNode.append(`
 bool ${brick.name}BounceGuard = false;
 long ${brick.name}LastDebounceTime = 0;
@@ -108,7 +128,9 @@ long ${brick.name}LastDebounceTime = 0;
             `);
         }
     }
+}
 
+function generateSetup(app: App, fileNode: CompositeGeneratorNode, pinAllocator: PinAllocator, hasLCD: boolean): void {
     fileNode.append(`
 	void setup(){`);
 
@@ -141,29 +163,12 @@ long ${brick.name}LastDebounceTime = 0;
 
     fileNode.append(`
 	}`);
-
-    if (hasMultipleMachines(app)) {
-        generateMultiMachineLoop(app, fileNode, (state, machineName) => {
-            compileState(state, fileNode, pinAllocator, machineName);
-        });
-    } else {
-        fileNode.append(`
-	void loop() {
-			switch(currentState){`, NL);
-
-    for (const state of app.states) {
-        compileState(state, fileNode, pinAllocator);
-    }
-
-    fileNode.append(`
-		}
-	}
-	`, NL);
 }
 
 function compileState(state: State, fileNode: CompositeGeneratorNode, pinAllocator: PinAllocator, machineName?: string) {
+    const stateName = machineName ? `${state.name}_${machineName}` : state.name;
     fileNode.append(`
-				case `+state.name+`:`)
+				case ${stateName}:`)
     for(const action of state.actions){
         if (isAction(action)) {
             compileAction(action, fileNode, pinAllocator);
@@ -249,7 +254,8 @@ function compileTransition(
     }
 
     if (machineName) {
-        generateMachineStateTransition(machineName, transition.next.ref?.name!, fileNode);
+        const nextStateName = `${transition.next.ref?.name}_${machineName}`;
+        fileNode.append(`currentState_${machineName} = ${nextStateName};`);
     } else {
         fileNode.append(`
 						currentState = ${transition.next.ref?.name};`);
@@ -311,4 +317,4 @@ function collectSensors(expr: LogicalExpression, sensors: Sensor[]): void {
             }
         }
     }
-}}}
+}

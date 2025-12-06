@@ -39,14 +39,13 @@ long debounce = 200;
 
     for (const machine of app.machines) {
         fileNode.append(`
-enum STATE_${machine.name.toUpperCase()} {${machine.states
-            .map((s) => s.name)
+enum STATE_${machine.name} {${machine.states
+            .map((s) => `${s.name}_${machine.name}`)
             .join(', ')}};
-
-STATE_${machine.name.toUpperCase()} currentState_${machine.name} = ${
+STATE_${machine.name} currentState_${machine.name} = ${
             machine.initial.ref?.name
-        };
-unsigned long lastExecution_${machine.name} = 0;
+        }_${machine.name};
+unsigned long lastRun_${machine.name} = 0;
 `, NL);
     }
 }
@@ -63,10 +62,10 @@ export function generateMultiMachineLoop(
 
     for (const machine of app.machines) {
         fileNode.append(`
-		if (currentMillis - lastExecution_${machine.name} >= ${machine.period}) {
-			lastExecution_${machine.name} = currentMillis;
-			
-			switch(currentState_${machine.name}) {`, NL);
+
+        if (currentMillis - lastRun_${machine.name} >= ${machine.period}) {
+            lastRun_${machine.name} = currentMillis;
+            switch(currentState_${machine.name}) {`, NL);
 
         for (const state of machine.states) {
             compileStateCallback(state, machine.name);
