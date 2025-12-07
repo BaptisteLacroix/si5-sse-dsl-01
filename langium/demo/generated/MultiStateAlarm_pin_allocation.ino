@@ -11,6 +11,7 @@ long debounce = 200;
 enum STATE {ready, buzzing, led_on};
 
 STATE currentState = ready;
+bool stateChanged = true;
 
 bool buttonBounceGuard = false;
 long buttonLastDebounceTime = 0;
@@ -25,29 +26,41 @@ long buttonLastDebounceTime = 0;
 			switch(currentState){
 
 				case ready:
+					// Execute actions on state entry
+					if (stateChanged) {
+						stateChanged = false;
 					digitalWrite(8,LOW);
 					digitalWrite(9,LOW);
+					}
 					if( (digitalRead(10) == HIGH) && (millis() - buttonLastDebounceTime > debounce) ) {
 						buttonLastDebounceTime = millis();
 						currentState = buzzing;
-					}
-		break;
+						stateChanged = true;
+					}break;
 				case buzzing:
+					// Execute actions on state entry
+					if (stateChanged) {
+						stateChanged = false;
 					digitalWrite(8,HIGH);
 					digitalWrite(9,LOW);
+					}
 					if( (digitalRead(10) == HIGH) && (millis() - buttonLastDebounceTime > debounce) ) {
 						buttonLastDebounceTime = millis();
 						currentState = led_on;
-					}
-		break;
+						stateChanged = true;
+					}break;
 				case led_on:
+					// Execute actions on state entry
+					if (stateChanged) {
+						stateChanged = false;
 					digitalWrite(8,LOW);
 					digitalWrite(9,HIGH);
+					}
 					if( (digitalRead(10) == HIGH) && (millis() - buttonLastDebounceTime > debounce) ) {
 						buttonLastDebounceTime = millis();
 						currentState = ready;
-					}
-		break;
+						stateChanged = true;
+					}break;
 		}
 	}
 	

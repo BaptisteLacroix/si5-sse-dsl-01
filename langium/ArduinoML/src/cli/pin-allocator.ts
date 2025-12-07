@@ -74,6 +74,12 @@ export class PinAllocator {
                     continue;
                 }
 
+                // Skip LCD - it uses hardcoded pins in the generator
+                if (brick.$type === 'LCD') {
+                    console.log(`[PinAllocator] Skipping pin allocation for LCD: ${brick.name} (uses hardcoded pins 2-12)`);
+                    continue;
+                }
+
                 const pin = this.allocatePin(brick);
                 if (pin === -1) {
                     console.error(`[PinAllocator] ERROR: Unable to allocate pin for brick: ${brick.name}`);

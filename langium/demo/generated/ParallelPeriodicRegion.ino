@@ -39,17 +39,27 @@ long button2LastDebounceTime = 0;
             switch(currentState_toggleMachine) {
 
 				case led1Off_toggleMachine:
+					// Execute actions on state entry
+					if (stateChanged) {
+						stateChanged = false;
 					digitalWrite(10,LOW);
-					if( (digitalRead(8) == HIGH) && (millis() - button1LastDebounceTime > debounce) ) {
-						button1LastDebounceTime = millis();currentState_toggleMachine = led1On_toggleMachine;
 					}
-		break;
+					if( (digitalRead(8) == HIGH) && (millis() - button1LastDebounceTime > debounce) ) {
+						button1LastDebounceTime = millis();
+						currentState_toggleMachine = led1On_toggleMachine;
+						stateChanged = true;
+					}break;
 				case led1On_toggleMachine:
+					// Execute actions on state entry
+					if (stateChanged) {
+						stateChanged = false;
 					digitalWrite(10,HIGH);
-					if( (digitalRead(8) == HIGH) && (millis() - button1LastDebounceTime > debounce) ) {
-						button1LastDebounceTime = millis();currentState_toggleMachine = led1Off_toggleMachine;
 					}
-		break;
+					if( (digitalRead(8) == HIGH) && (millis() - button1LastDebounceTime > debounce) ) {
+						button1LastDebounceTime = millis();
+						currentState_toggleMachine = led1Off_toggleMachine;
+						stateChanged = true;
+					}break;
 			}
 		}
 		
@@ -60,17 +70,27 @@ long button2LastDebounceTime = 0;
             switch(currentState_pushMachine) {
 
 				case led2Off_pushMachine:
+					// Execute actions on state entry
+					if (stateChanged) {
+						stateChanged = false;
 					digitalWrite(11,LOW);
+					}
 					if( (digitalRead(9) == HIGH) && (millis() - button2LastDebounceTime > debounce) ) {
-						button2LastDebounceTime = millis();currentState_pushMachine = led2On_pushMachine;
-					}
-		break;
+						button2LastDebounceTime = millis();
+						currentState_pushMachine = led2On_pushMachine;
+						stateChanged = true;
+					}break;
 				case led2On_pushMachine:
+					// Execute actions on state entry
+					if (stateChanged) {
+						stateChanged = false;
 					digitalWrite(11,HIGH);
-					if( (digitalRead(9) == LOW) && (millis() - button2LastDebounceTime > debounce) ) {
-						button2LastDebounceTime = millis();currentState_pushMachine = led2Off_pushMachine;
 					}
-		break;
+					if( (digitalRead(9) == LOW) && (millis() - button2LastDebounceTime > debounce) ) {
+						button2LastDebounceTime = millis();
+						currentState_pushMachine = led2Off_pushMachine;
+						stateChanged = true;
+					}break;
 			}
 		}
 		

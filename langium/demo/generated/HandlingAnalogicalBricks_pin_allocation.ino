@@ -10,6 +10,7 @@ long debounce = 200;
 enum STATE {monitoring, alarm};
 
 STATE currentState = monitoring;
+bool stateChanged = true;
 
 	void setup(){
 		pinMode(1, INPUT); // tempSensor [AnalogSensor]
@@ -19,17 +20,25 @@ STATE currentState = monitoring;
 			switch(currentState){
 
 				case monitoring:
+					// Execute actions on state entry
+					if (stateChanged) {
+						stateChanged = false;
 					digitalWrite(8,LOW);
+					}
 					if( (analogRead(1) > 300) ) {
 						currentState = alarm;
-					}
-		break;
+						stateChanged = true;
+					}break;
 				case alarm:
+					// Execute actions on state entry
+					if (stateChanged) {
+						stateChanged = false;
 					digitalWrite(8,HIGH);
+					}
 					if( (analogRead(1) <= 300) ) {
 						currentState = monitoring;
-					}
-		break;
+						stateChanged = true;
+					}break;
 		}
 	}
 	
