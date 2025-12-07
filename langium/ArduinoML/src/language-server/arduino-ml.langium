@@ -25,7 +25,7 @@ StateMachine:
     '}';
 
 Brick:
-	(Actuator | Sensor | AnalogActuator | AnalogSensor | SerialBrick | Buzzer | LCD);
+	(Actuator | Sensor | AnalogActuator | AnalogSensor | TemperatureSensor | SerialBrick | Buzzer | LCD);
 
 Actuator:
 	{infer Actuator}
@@ -42,6 +42,10 @@ AnalogActuator:
 AnalogSensor:
 	{infer AnalogSensor}
 	'AnalogSensor' name=ID (':' inputPin=INT)?;
+
+TemperatureSensor:
+	{infer TemperatureSensor}
+	'TemperatureSensor' name=ID (':' inputPin=INT)?;
 
 SerialBrick:
 	{infer SerialBrick}
@@ -95,7 +99,7 @@ PrimaryExpression infers LogicalExpression:
 
 Condition:
 	brick=[Brick:ID] 'is' value=Signal |
-	analogBrick=[AnalogSensor:ID] operator=('>' | '<' | '>=' | '<=' | '==' | '!=') threshold=INT |
+	brick=[Brick:ID] operator=('>' | '<' | '>=' | '<=' | '==' | '!=') threshold=INT |
 	serial=[SerialBrick:ID] 'is' message=STRING;
 
 Signal:

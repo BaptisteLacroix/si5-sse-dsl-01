@@ -1,0 +1,21 @@
+app TemperatureControl initial state comfortable {
+	bricks
+		TemperatureSensor roomTemp
+		Actuator heater : 12
+		Actuator cooler : 11
+		Serial console : 9600
+
+	states
+		comfortable {
+			heater <= LOW
+			cooler <= LOW
+			console <= "Temperature comfortable (18-25°C)"
+			roomTemp > 25 => toohot
+		}
+		toohot {
+			heater <= LOW
+			cooler <= HIGH
+			console <= "Cooling: temperature above 25°C"
+			roomTemp < 23 => comfortable
+		}
+}

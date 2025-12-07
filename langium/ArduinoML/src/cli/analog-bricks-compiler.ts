@@ -86,13 +86,15 @@ export function compileAnalogAction(
  */
 export function compileAnalogCondition(condition: Condition, pinAllocator: PinAllocator): string {
     if (
-        condition.analogBrick &&
+        condition.brick &&
         condition.operator &&
         condition.threshold !== undefined
     ) {
-        const analogSensor = condition.analogBrick.ref;
-        const pin = pinAllocator.getPin(analogSensor!);
-        return `analogRead(${pin}) ${condition.operator} ${condition.threshold}`
+        const brick = condition.brick.ref;
+        if (brick && brick.$type === 'AnalogSensor') {
+            const pin = pinAllocator.getPin(brick);
+            return `analogRead(${pin}) ${condition.operator} ${condition.threshold}`
+        }
     }
     return ''
 }
@@ -102,7 +104,9 @@ export function compileAnalogCondition(condition: Condition, pinAllocator: PinAl
  */
 export function isAnalogCondition(condition: Condition): boolean {
     return !!(
-        condition.analogBrick &&
+        condition.brick &&
+        condition.brick.ref &&
+        condition.brick.ref.$type === 'AnalogSensor' &&
         condition.operator &&
         condition.threshold !== undefined
     )

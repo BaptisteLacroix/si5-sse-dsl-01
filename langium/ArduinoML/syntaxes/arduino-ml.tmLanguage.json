@@ -10,7 +10,7 @@
     },
     {
       "name": "keyword.control.arduino-ml",
-      "match": "\\b(Actuator|analog|AnalogActuator|AnalogSensor|and|app|bips|bricks|Buzzer|digital|for|initial|is|LCD|machine|machines|makes|ms|or|period|plays|Sensor|Serial|state|states|status|type)\\b"
+      "match": "\\b(Actuator|analog|AnalogActuator|AnalogSensor|and|app|bips|bricks|Buzzer|digital|for|initial|is|LCD|machine|machines|makes|ms|or|period|plays|Sensor|Serial|state|states|status|TemperatureSensor|type)\\b"
     },
     {
       "name": "string.quoted.double.arduino-ml",

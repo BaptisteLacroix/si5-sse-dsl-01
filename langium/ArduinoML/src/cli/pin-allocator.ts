@@ -160,6 +160,10 @@ export class PinAllocator {
             console.log(`[PinAllocator] Allocating analog pin for AnalogSensor: ${brick.name}`);
             // AnalogSensor always needs analog input pins
             return this.allocateFromPool(this.availableAnalogPins, `[PinAllocator] No available analog pins for AnalogSensor: ${brick.name}`);
+        } else if (brick.$type === 'TemperatureSensor') {
+            console.log(`[PinAllocator] Allocating analog pin for TemperatureSensor: ${brick.name}`);
+            // TemperatureSensor uses analog input pins
+            return this.allocateFromPool(this.availableAnalogPins, `[PinAllocator] No available analog pins for TemperatureSensor: ${brick.name}`);
         }
         const unknownBrick = brick as Brick;
         console.warn(`[PinAllocator] Unknown brick type for allocation: ${unknownBrick.name} (${unknownBrick.$type})`);

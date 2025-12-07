@@ -38,7 +38,7 @@ long buttonLastDebounceTime = 0;
 					digitalWrite(13,LOW);
 			lcd.clear();
 			lcd.setCursor(0, 0);
-			lcd.print('LED is OFF');
+			lcd.print("LED is OFF");
 					}
 					if( (digitalRead(9) == HIGH) && (millis() - buttonLastDebounceTime > debounce) ) {
 						buttonLastDebounceTime = millis();
@@ -52,7 +52,7 @@ long buttonLastDebounceTime = 0;
 					digitalWrite(13,HIGH);
 			lcd.clear();
 			lcd.setCursor(0, 0);
-			lcd.print('LED: ');
+			lcd.print("LED: ");
 			lcd.print(digitalRead(13) == HIGH ? "ON" : "OFF");
 					}
 					if( (digitalRead(9) == HIGH) && (millis() - buttonLastDebounceTime > debounce) ) {
