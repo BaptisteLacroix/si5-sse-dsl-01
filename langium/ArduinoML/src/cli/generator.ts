@@ -39,6 +39,13 @@ import {
     generateMultiMachineLoop,
 } from './multi-machine-compiler';
 import {compileLCDAction} from "./lcd";
+import {
+    compileTemperatureSensor,
+    compileTemperatureCondition,
+    isTemperatureCondition,
+    hasTemperatureSensor,
+    generateTemperatureConversionFunction,
+} from './temperature-bricks-compiler';
 
 export function generateInoFile(
     app: App,
@@ -67,6 +74,12 @@ function compile(app: App, fileNode: CompositeGeneratorNode) {
     // Check if app uses SerialBrick
     const hasSerial = app.bricks.some((brick) => brick.$type === 'SerialBrick');
 
+    // Check if app uses Buzzer
+    const hasBuzzer = app.bricks.some((brick) => brick.$type === 'Buzzer');
+
+    // stateChanged is needed for Serial, LCD, or Buzzer to avoid repeating actions on every loop iteration
+    const needsStateChanged = hasSerial || hasLCD || hasBuzzer;
+
     if (hasLCD) {
         fileNode.append(`
 #include <LiquidCrystal.h>
@@ -80,7 +93,7 @@ LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
     const pinAllocator = new PinAllocator(hasLCD);
     pinAllocator.allocatePins(app.bricks);
 
-    if (app.bricks.some((brick) => brick.$type === 'Buzzer')) {
+    if (hasBuzzer) {
         fileNode.append(PITCHES_DEFINITIONS, NL);
     }
 
@@ -89,7 +102,7 @@ LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
         generateDebounceVariables(app, fileNode);
         generateSetup(app, fileNode, pinAllocator, hasLCD);
         generateMultiMachineLoop(app, fileNode, (state, machineName) => {
-            compileState(state, fileNode, pinAllocator, machineName, hasSerial);
+            compileState(state, fileNode, pinAllocator, machineName, needsStateChanged);
         });
     } else {
         fileNode.append(
@@ -109,7 +122,7 @@ enum STATE {` +
 STATE currentState = ` +
             app.initial?.ref?.name +
             `;` +
-            (hasSerial ? `
+            (needsStateChanged ? `
 bool stateChanged = true;` : ''),
         NL
     );
@@ -122,7 +135,7 @@ bool stateChanged = true;` : ''),
 			switch(currentState){`, NL);
 
     for (const state of app.states) {
-        compileState(state, fileNode, pinAllocator, undefined, hasSerial);
+        compileState(state, fileNode, pinAllocator, undefined, needsStateChanged);
     }
 
     fileNode.append(`
@@ -145,6 +158,11 @@ long ${brick.name}LastDebounceTime = 0;
 }
 
 function generateSetup(app: App, fileNode: CompositeGeneratorNode, pinAllocator: PinAllocator, hasLCD: boolean): void {
+    // Generate temperature conversion function if needed
+    if (hasTemperatureSensor(app.bricks)) {
+        generateTemperatureConversionFunction(fileNode);
+    }
+
     fileNode.append(`
 	void setup(){`);
 
@@ -161,6 +179,8 @@ function generateSetup(app: App, fileNode: CompositeGeneratorNode, pinAllocator:
     for (const brick of app.bricks) {
         if (brick.$type === 'AnalogSensor') {
             compileAnalogSensor(brick, fileNode, pinAllocator);
+        } else if (brick.$type === 'TemperatureSensor') {
+            compileTemperatureSensor(brick, fileNode, pinAllocator);
         } else if (brick.$type === 'AnalogActuator') {
             compileAnalogActuator(brick, fileNode, pinAllocator);
         } else if (brick.$type === 'Buzzer') {
@@ -182,14 +202,14 @@ function generateSetup(app: App, fileNode: CompositeGeneratorNode, pinAllocator:
 	}`);
 }
 
-function compileState(state: State, fileNode: CompositeGeneratorNode, pinAllocator: PinAllocator, machineName?: string, hasSerial: boolean = false) {
+function compileState(state: State, fileNode: CompositeGeneratorNode, pinAllocator: PinAllocator, machineName?: string, needsStateChanged: boolean = false) {
     const stateName = machineName ? `${state.name}_${machineName}` : state.name;
     fileNode.append(`
 				case ${stateName}:`);
 
-    // Wrap actions in stateChanged check only if SerialBrick is present
+    // Wrap actions in stateChanged check if needed (for Serial, LCD, or Buzzer)
     if (state.actions.length > 0) {
-        if (hasSerial) {
+        if (needsStateChanged) {
             fileNode.append(`
 					// Execute actions on state entry
 					if (stateChanged) {
@@ -208,7 +228,7 @@ function compileState(state: State, fileNode: CompositeGeneratorNode, pinAllocat
             }
         }
 
-        if (hasSerial) {
+        if (needsStateChanged) {
             fileNode.append(`
 					}`);
         }
@@ -216,7 +236,7 @@ function compileState(state: State, fileNode: CompositeGeneratorNode, pinAllocat
 
     if (state.transitions !== null){
         for (const transition of state.transitions) {
-            compileTransition(transition, fileNode, pinAllocator, machineName, hasSerial);
+            compileTransition(transition, fileNode, pinAllocator, machineName, needsStateChanged);
         }
     }
     fileNode.append(`break;`)
@@ -260,7 +280,7 @@ function compileTransition(
     fileNode: CompositeGeneratorNode,
     pinAllocator: PinAllocator,
     machineName?: string,
-    hasSerialBrick: boolean = false
+    needsStateChanged: boolean = false
 ) {
     // Check if expression contains serial conditions
     const transitionHasSerial = hasSerialCondition(transition.expression);
@@ -300,18 +320,18 @@ function compileTransition(
 ` + indent + `\t${sensor.name}LastDebounceTime = millis();`);
     }
 
-    // Change state and set stateChanged flag (only if SerialBrick is present)
+    // Change state and set stateChanged flag (if needed for Serial, LCD, or Buzzer)
     if (machineName) {
         const nextStateName = `${transition.next.ref?.name}_${machineName}`;
         fileNode.append(`
 ` + indent + `\tcurrentState_${machineName} = ${nextStateName};` +
-            (hasSerialBrick ? `
+            (needsStateChanged ? `
 ` + indent + `\tstateChanged = true;` : '') + `
 ` + indent + `}`);
     } else {
         fileNode.append(`
 ` + indent + `\tcurrentState = ${transition.next.ref?.name};` +
-            (hasSerialBrick ? `
+            (needsStateChanged ? `
 ` + indent + `\tstateChanged = true;` : '') + `
 ` + indent + `}`);
     }
@@ -341,11 +361,13 @@ function compileLogicalExpression(expr: LogicalExpression, pinAllocator: PinAllo
 }
 
 /**
- * Compiles a single condition (digital, analog, or serial)
+ * Compiles a single condition (digital, analog, temperature, or serial)
  */
 function compileCondition(condition: Condition, pinAllocator: PinAllocator): string {
     if (isAnalogCondition(condition)) {
         return compileAnalogCondition(condition, pinAllocator)
+    } else if (isTemperatureCondition(condition)) {
+        return compileTemperatureCondition(condition, pinAllocator)
     } else if (isSerialCondition(condition)) {
         return compileSerialCondition(condition)
     } else if (condition.brick) {
