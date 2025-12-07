@@ -10,7 +10,7 @@ export function compileLCDAction(lcdAction: LCDAction, fileNode: CompositeGenera
         if ('text' in part) {
             // ConstantPart
             fileNode.append(`
-			lcd.print('${part.text}');`);
+			lcd.print("${part.text}");`);
         } else {
             // BrickStatusPart
             const brick = part.brick.ref;
