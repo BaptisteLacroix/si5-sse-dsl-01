@@ -1,3 +1,5 @@
+// Wiring code generated from an ArduinoML model
+// Application name: null
 
 long debounce = 200;
 
@@ -14,12 +16,14 @@ void setup(){
 }
 
 void loop() {
-        switch(currentState){
-                case off:
-                        digitalWrite(12,LOW);
-                        digitalWrite(11,LOW);
-                case on:
-                        digitalWrite(12,HIGH);
-                        digitalWrite(11,HIGH);
-        }
+	switch(currentState){
+		case off:
+			digitalWrite(12,LOW);
+			digitalWrite(11,LOW);
+		break;
+		case on:
+			digitalWrite(12,HIGH);
+			digitalWrite(11,HIGH);
+		break;
+	}
 }
