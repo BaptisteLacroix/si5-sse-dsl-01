@@ -31,8 +31,7 @@ long buttonLastDebounceTime = 0;
 						buttonLastDebounceTime = millis();
 						currentState = buzzing;
 					}
-		
-				break;
+		break;
 				case buzzing:
 					digitalWrite(8,HIGH);
 					digitalWrite(9,LOW);
@@ -40,8 +39,7 @@ long buttonLastDebounceTime = 0;
 						buttonLastDebounceTime = millis();
 						currentState = led_on;
 					}
-		
-				break;
+		break;
 				case led_on:
 					digitalWrite(8,LOW);
 					digitalWrite(9,HIGH);
@@ -49,8 +47,7 @@ long buttonLastDebounceTime = 0;
 						buttonLastDebounceTime = millis();
 						currentState = ready;
 					}
-		
-				break;
+		break;
 		}
 	}
 	

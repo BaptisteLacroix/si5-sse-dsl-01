@@ -1,0 +1,17 @@
+app BuzzerTest initial state wait {
+    bricks
+    Buzzer buzzer : 8
+    Sensor button : 2
+
+    states
+    wait {
+        button is HIGH => alert
+    }
+    alert {
+        buzzer makes 3 SHORT bips
+        buzzer plays C4 for 500 ms
+        buzzer plays E4 for 500 ms
+        buzzer plays G4 for 500 ms
+        button is LOW => wait
+    }
+}

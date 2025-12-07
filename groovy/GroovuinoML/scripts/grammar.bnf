@@ -1,0 +1,47 @@
+<program> ::= <declaration>* <initial-state> <transition>* <export>
+
+<declaration> ::= <actuator-decl> | <sensor-decl> | <state-decl>
+
+<actuator-decl> ::= "actuator" <identifier> "pin" <number>
+
+<sensor-decl> ::= "sensor" <identifier> ("pin" | "onPin") <number>
+
+<state-decl> ::= "state" <identifier> "means" <action-list>
+
+<action-list> ::= <action> ("and" <action>)*
+
+<action> ::= <identifier> "becomes" <signal>
+
+<signal> ::= "high" | "low" | <identifier>
+
+<initial-state> ::= "initial" <identifier>
+
+<transition> ::= <timed-transition> | <conditional-transition>
+
+<timed-transition> ::= "from" <identifier> "to" <identifier> "after" <number> <time-unit>?
+
+<conditional-transition> ::= "from" <identifier> "to" <identifier> "when" <condition>
+
+<condition> ::= <primary-condition> (<logical-op> <primary-condition>)*
+
+<primary-condition> ::= <identifier> "becomes" <signal>
+
+<logical-op> ::= "and" | "or"
+
+<export> ::= "export" <string>
+
+<identifier> ::= <string> | <bare-name>
+
+<string> ::= '"' <character>* '"'
+
+<bare-name> ::= <letter> (<letter> | <digit> | "_")*
+
+<number> ::= <digit>+
+
+<time-unit> ::= "ms" | "s" | "minutes" | "hours"
+
+<letter> ::= "[a-zA-Z]*"
+
+<digit> ::= "[0-9]+"
+
+<character> ::= any character except '"'

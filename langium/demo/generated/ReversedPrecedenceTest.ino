@@ -42,16 +42,14 @@ long buttonCLastDebounceTime = 0;
 						buttonALastDebounceTime = millis();
 						currentState = on;
 					}
-		
-				break;
+		break;
 				case on:
 					digitalWrite(12,HIGH);
 					if( (digitalRead(8) == LOW) && (millis() - buttonALastDebounceTime > debounce) ) {
 						buttonALastDebounceTime = millis();
 						currentState = off;
 					}
-		
-				break;
+		break;
 		}
 	}
 	

@@ -9,10 +9,13 @@ import {
     LogicalExpression,
     Sensor,
     State,
+    isAction,
+    isLCDAction,
     Transition,
 } from '../language-server/generated/ast';
 import { extractDestinationAndName } from './cli-util';
 import { PinAllocator } from './pin-allocator';
+import { PITCHES_DEFINITIONS, compileBuzzer, compileBeep, compilePlayNote } from './buzzer';
 import {
     compileAnalogActuator,
     compileAnalogSensor,
@@ -29,6 +32,13 @@ import {
     openSerialCheckBlock,
     closeSerialCheckBlock,
 } from './serial-bricks-compiler';
+import {
+    hasMultipleMachines,
+    validateMachineConfiguration,
+    generateMultiMachineHeader,
+    generateMultiMachineLoop,
+} from './multi-machine-compiler';
+import {compileLCDAction} from "./lcd";
 
 export function generateInoFile(
     app: App,
@@ -42,45 +52,85 @@ export function generateInoFile(
     compile(app, fileNode)
 
     if (!fs.existsSync(data.destination)) {
-        fs.mkdirSync(data.destination, { recursive: true })
+        fs.mkdirSync(data.destination, {recursive: true})
     }
     fs.writeFileSync(generatedFilePath, toString(fileNode))
     return generatedFilePath
 }
 
 function compile(app: App, fileNode: CompositeGeneratorNode) {
-    // Check if app uses LCD (not implemented in current grammar)
-    const hasLCD = false;
+    validateMachineConfiguration(app);
+
+    // Check if app uses LCD
+    const hasLCD = app.bricks.some((brick) => brick.$type === 'LCD');
+
+    if (hasLCD) {
+        fileNode.append(`
+#include <LiquidCrystal.h>
+
+// LCD pins: RS, E, D4, D5, D6, D7
+LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+`, NL);
+    }
 
     // Initialize pin allocator and allocate pins for bricks without manual assignment
     const pinAllocator = new PinAllocator(hasLCD);
     pinAllocator.allocatePins(app.bricks);
 
-    fileNode.append(
-        `
+    if (app.bricks.some((brick) => brick.$type === 'Buzzer')) {
+        fileNode.append(PITCHES_DEFINITIONS, NL);
+    }
+
+    if (hasMultipleMachines(app)) {
+        generateMultiMachineHeader(app, fileNode);
+        generateDebounceVariables(app, fileNode);
+        generateSetup(app, fileNode, pinAllocator, hasLCD);
+        generateMultiMachineLoop(app, fileNode, (state, machineName) => {
+            compileState(state, fileNode, pinAllocator, machineName);
+        });
+    } else {
+        fileNode.append(
+            `
 //Wiring code generated from an ArduinoML model
 // Application name: ` +
-            app.name +
-            `
+        app.name +
+        `
 
 ` + pinAllocator.getAllocationSummary() + `
 
 long debounce = 200;
 enum STATE {` +
-            app.states.map((s) => s.name).join(', ') +
-            `};
+        app.states.map((s) => s.name).join(', ') +
+        `};
 
 STATE currentState = ` +
-            app.initial.ref?.name +
+            app.initial?.ref?.name +
             `;
 bool stateChanged = true;`,
         NL
     );
 
-    // Generate debounce variables only for digital sensors (analog sensors don't need debouncing)
+    generateDebounceVariables(app, fileNode);
+    generateSetup(app, fileNode, pinAllocator, hasLCD);
+
+    fileNode.append(`
+	void loop() {
+			switch(currentState){`, NL);
+
+    for (const state of app.states) {
+        compileState(state, fileNode, pinAllocator);
+    }
+
+    fileNode.append(`
+		}
+	}
+	`, NL);
+    }
+}
+
+function generateDebounceVariables(app: App, fileNode: CompositeGeneratorNode): void {
     for (const brick of app.bricks) {
         if (brick.$type === 'Sensor') {
-            // Digital sensor needs debounce
             fileNode.append(`
 bool ${brick.name}BounceGuard = false;
 long ${brick.name}LastDebounceTime = 0;
@@ -88,12 +138,20 @@ long ${brick.name}LastDebounceTime = 0;
             `);
         }
     }
+}
 
+function generateSetup(app: App, fileNode: CompositeGeneratorNode, pinAllocator: PinAllocator, hasLCD: boolean): void {
     fileNode.append(`
 	void setup(){`);
 
     // Initialize serial communication if SerialBrick is present
     initializeSerial(app, fileNode);
+
+    if (hasLCD) {
+        fileNode.append(`
+		lcd.begin(16, 2); // Initialize LCD 16x2
+		lcd.clear();`);
+    }
 
     // Generate pinMode setup for all bricks (both digital and analog)
     for (const brick of app.bricks) {
@@ -101,6 +159,8 @@ long ${brick.name}LastDebounceTime = 0;
             compileAnalogSensor(brick, fileNode, pinAllocator);
         } else if (brick.$type === 'AnalogActuator') {
             compileAnalogActuator(brick, fileNode, pinAllocator);
+        } else if (brick.$type === 'Buzzer') {
+            compileBuzzer(brick, fileNode);
         } else if (brick.$type === 'Sensor' || brick.$type === 'Actuator') {
             // Use pin allocator for digital bricks
             const pin = pinAllocator.getPin(brick);
@@ -115,23 +175,13 @@ long ${brick.name}LastDebounceTime = 0;
     }
 
     fileNode.append(`
-	}
-	void loop() {
-			switch(currentState){`, NL);
-
-    for (const state of app.states) {
-        compileState(state, fileNode, pinAllocator);
-    }
-
-    fileNode.append(`
-		}
-	}
-	`, NL);
+	}`);
 }
 
-function compileState(state: State, fileNode: CompositeGeneratorNode, pinAllocator: PinAllocator) {
+function compileState(state: State, fileNode: CompositeGeneratorNode, pinAllocator: PinAllocator, machineName?: string) {
+    const stateName = machineName ? `${state.name}_${machineName}` : state.name;
     fileNode.append(`
-				case ` + state.name + `:`);
+				case ${stateName}:`);
 
     // Wrap actions in stateChanged check to execute only on state entry
     if (state.actions.length > 0) {
@@ -141,18 +191,27 @@ function compileState(state: State, fileNode: CompositeGeneratorNode, pinAllocat
 						stateChanged = false;`);
 
         for (const action of state.actions) {
-            compileAction(action, fileNode, pinAllocator);
+            if (isAction(action)) {
+                compileAction(action, fileNode, pinAllocator);
+            } else if (action.$type === "Beep") {
+                compileBeep(action, fileNode);
+            } else if (action.$type === "PlayNote") {
+                compilePlayNote(action, fileNode);
+            } else if (isLCDAction(action)) {
+                compileLCDAction(action, fileNode);
+            }
         }
 
         fileNode.append(`
 					}`);
     }
 
-    if (state.transition !== null) {
-        compileTransition(state.transition, fileNode, pinAllocator);
+    if (state.transitions !== null){
+        for (const transition of state.transitions) {
+            compileTransition(transition, fileNode, pinAllocator, machineName);
+        }
     }
-    fileNode.append(`
-				break;`);
+    fileNode.append(`break;`)
 }
 
 function compileAction(action: Action, fileNode: CompositeGeneratorNode, pinAllocator: PinAllocator) {
@@ -191,7 +250,8 @@ function compileAction(action: Action, fileNode: CompositeGeneratorNode, pinAllo
 function compileTransition(
     transition: Transition,
     fileNode: CompositeGeneratorNode,
-    pinAllocator: PinAllocator
+    pinAllocator: PinAllocator,
+    machineName?: string
 ) {
     // Check if expression contains serial conditions
     const hasSerial = hasSerialCondition(transition.expression);
@@ -232,18 +292,23 @@ function compileTransition(
     }
 
     // Change state and set stateChanged flag
-    fileNode.append(`
+    if (machineName) {
+        const nextStateName = `${transition.next.ref?.name}_${machineName}`;
+        fileNode.append(`
+` + indent + `\tcurrentState_${machineName} = ${nextStateName};
+` + indent + `\tstateChanged = true;
+` + indent + `}`);
+    } else {
+        fileNode.append(`
 ` + indent + `\tcurrentState = ${transition.next.ref?.name};
 ` + indent + `\tstateChanged = true;
 ` + indent + `}`);
+    }
 
     // Close Serial.available() block if needed
     if (hasSerial) {
         closeSerialCheckBlock(fileNode);
     }
-
-    fileNode.append(`
-		`);
 }
 
 /**
@@ -300,5 +365,3 @@ function collectSensors(expr: LogicalExpression, sensors: Sensor[]): void {
         }
     }
 }
-
-
