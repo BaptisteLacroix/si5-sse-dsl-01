@@ -11,7 +11,6 @@ long debounce = 200;
 enum STATE {off, on};
 
 STATE currentState = off;
-bool stateChanged = true;
 
 bool buttonBounceGuard = false;
 long buttonLastDebounceTime = 0;
@@ -26,28 +25,18 @@ long buttonLastDebounceTime = 0;
 			switch(currentState){
 
 				case off:
-					// Execute actions on state entry
-					if (stateChanged) {
-						stateChanged = false;
 					digitalWrite(12,LOW);
 					digitalWrite(11,LOW);
-					}
 					if( (digitalRead(8) == HIGH) && (millis() - buttonLastDebounceTime > debounce) ) {
 						buttonLastDebounceTime = millis();
 						currentState = on;
-						stateChanged = true;
 					}break;
 				case on:
-					// Execute actions on state entry
-					if (stateChanged) {
-						stateChanged = false;
 					digitalWrite(12,HIGH);
 					digitalWrite(11,HIGH);
-					}
 					if( (digitalRead(8) == LOW) && (millis() - buttonLastDebounceTime > debounce) ) {
 						buttonLastDebounceTime = millis();
 						currentState = off;
-						stateChanged = true;
 					}break;
 		}
 	}

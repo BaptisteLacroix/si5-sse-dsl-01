@@ -100,7 +100,6 @@ long debounce = 200;
 enum STATE {wait, play};
 
 STATE currentState = wait;
-bool stateChanged = true;
 
 bool buttonBounceGuard = false;
 long buttonLastDebounceTime = 0;
@@ -117,12 +116,8 @@ long buttonLastDebounceTime = 0;
 					if( (digitalRead(11) == HIGH) && (millis() - buttonLastDebounceTime > debounce) ) {
 						buttonLastDebounceTime = millis();
 						currentState = play;
-						stateChanged = true;
 					}break;
 				case play:
-					// Execute actions on state entry
-					if (stateChanged) {
-						stateChanged = false;
                     tone(8, NOTE_C4, 200);
                     delay(260);
                     noTone(8);
@@ -195,11 +190,9 @@ long buttonLastDebounceTime = 0;
                     tone(8, NOTE_C4, 600);
                     delay(780);
                     noTone(8);
-					}
 					if( (digitalRead(11) == LOW) && (millis() - buttonLastDebounceTime > debounce) ) {
 						buttonLastDebounceTime = millis();
 						currentState = wait;
-						stateChanged = true;
 					}break;
 		}
 	}
