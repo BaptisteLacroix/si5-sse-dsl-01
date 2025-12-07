@@ -14,6 +14,7 @@ int state = LOW; int prev = HIGH;
 long time = 0; long debounce = 200;
 
 void state_off() {
+	digitalWrite(BUZZER, LOW);
 	boolean guard = millis() - time > debounce;
 	if (digitalRead(BUTTON1) == HIGH && guard) {
 		time = millis(); state_button1_pressed();
@@ -23,6 +24,7 @@ void state_off() {
 }
 
 void state_button1_pressed() {
+	digitalWrite(BUZZER, LOW);
 	boolean guard = millis() - time > debounce;
 	if (digitalRead(BUTTON2) == HIGH && guard) {
 		time = millis(); state_both_pressed();
@@ -32,6 +34,7 @@ void state_button1_pressed() {
 }
 
 void state_both_pressed() {
+	digitalWrite(BUZZER, HIGH);
 	boolean guard = millis() - time > debounce;
 	if (digitalRead(BUTTON1) == LOW && guard) {
 		time = millis(); state_off();

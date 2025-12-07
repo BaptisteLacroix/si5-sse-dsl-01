@@ -103,7 +103,7 @@ class StateBuilder:
         A 2-step build is required (due to the meta-model) to get references right while avoiding bad typing tricks
         such as passing a TransitionBuilder instead of a Transition.
         """
-        return State(self.state, map(lambda builder: builder.get_contents(bricks), self.actions), None)
+        return State(self.state, list(map(lambda builder: builder.get_contents(bricks), self.actions)), None)
 
     def get_contents2(self, bricks, states):
         """

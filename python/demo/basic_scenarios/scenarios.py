@@ -119,6 +119,61 @@ def scenario4_multi_state_alarm():
     print(f"\nSaved to: {filepath}\n")
     return app
 
+def scenario5_smart_home_security():
+    """
+    Scénario 5 : Sécurité Intelligente d'une Maison
+
+    Système de sécurité simplifié utilisant le matériel disponible :
+    - BUTTON1 (pin 9) : Interrupteur d'armement/désarmement
+    - BUTTON2 (pin 10) : Capteur de porte (simulé par un bouton)
+    - POTENTIOMETER (pin A1) : Capteur de mouvement (seuil de détection)
+    - LED1 (pin 11) : Voyant d'état du système (éteint = désarmé, allumé = armé)
+    - LED2 (pin 12) : LED d'alarme
+    - BUZZER (pin 8) : Sirène d'alarme
+
+    États :
+    - désarmé : Le système est désactivé
+    - armé : Le système surveille la porte
+    - porte_ouverte : La porte est ouverte, vérification du mouvement
+    - intrusion_détectée : Alarme complète activée
+    """
+    app = AppBuilder("Smart_Home_Security") \
+        .sensor("ARM_BUTTON").on_pin(8) \
+        .sensor("DOOR_SENSOR").on_pin(9) \
+        .sensor("MOTION_DETECTOR").on_pin(1) \
+        .actuator("STATUS_LED").on_pin(10) \
+        .actuator("ALARM_LED").on_pin(11) \
+        .actuator("SIREN").on_pin(12) \
+        .state("disarmed") \
+            .set("STATUS_LED").to(LOW) \
+            .set("ALARM_LED").to(LOW) \
+            .set("SIREN").to(LOW) \
+            .when("ARM_BUTTON").has_value(HIGH).go_to_state("armed") \
+        .state("armed") \
+            .set("STATUS_LED").to(HIGH) \
+            .set("ALARM_LED").to(LOW) \
+            .set("SIREN").to(LOW) \
+            .when("DOOR_SENSOR").has_value(HIGH).go_to_state("door_open") \
+        .state("door_open") \
+            .set("STATUS_LED").to(HIGH) \
+            .set("ALARM_LED").to(LOW) \
+            .set("SIREN").to(LOW) \
+            .when("MOTION_DETECTOR").has_value(HIGH).go_to_state("intrusion_detected") \
+        .state("intrusion_detected") \
+            .set("STATUS_LED").to(HIGH) \
+            .set("ALARM_LED").to(HIGH) \
+            .set("SIREN").to(HIGH) \
+            .when("ARM_BUTTON").has_value(HIGH).go_to_state("disarmed") \
+        .get_contents()
+
+    print("=== Scénario 5 : Sécurité Intelligente d'une Maison ===")
+    print(app)
+    filepath = app.save()
+    print(f"\nSauvegardé dans : {filepath}\n")
+    return app
+
+
+
 
 if __name__ == '__main__':
     print("Generating all basic scenarios...\n")
@@ -126,5 +181,6 @@ if __name__ == '__main__':
     scenario2_dual_check_alarm()
     scenario3_state_based_alarm()
     scenario4_multi_state_alarm()
+    scenario5_smart_home_security()
     print("All scenarios generated successfully!")
 
