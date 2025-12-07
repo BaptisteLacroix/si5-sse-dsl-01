@@ -41,15 +41,15 @@ long button2LastDebounceTime = 0;
 				case led1Off_toggleMachine:
 					digitalWrite(10,LOW);
 					if( (digitalRead(8) == HIGH) && (millis() - button1LastDebounceTime > debounce) ) {
-						button1LastDebounceTime = millis();currentState_toggleMachine = led1On_toggleMachine;
-					}
-		break;
+						button1LastDebounceTime = millis();
+						currentState_toggleMachine = led1On_toggleMachine;
+					}break;
 				case led1On_toggleMachine:
 					digitalWrite(10,HIGH);
 					if( (digitalRead(8) == HIGH) && (millis() - button1LastDebounceTime > debounce) ) {
-						button1LastDebounceTime = millis();currentState_toggleMachine = led1Off_toggleMachine;
-					}
-		break;
+						button1LastDebounceTime = millis();
+						currentState_toggleMachine = led1Off_toggleMachine;
+					}break;
 			}
 		}
 		
@@ -62,15 +62,15 @@ long button2LastDebounceTime = 0;
 				case led2Off_pushMachine:
 					digitalWrite(11,LOW);
 					if( (digitalRead(9) == HIGH) && (millis() - button2LastDebounceTime > debounce) ) {
-						button2LastDebounceTime = millis();currentState_pushMachine = led2On_pushMachine;
-					}
-		break;
+						button2LastDebounceTime = millis();
+						currentState_pushMachine = led2On_pushMachine;
+					}break;
 				case led2On_pushMachine:
 					digitalWrite(11,HIGH);
 					if( (digitalRead(9) == LOW) && (millis() - button2LastDebounceTime > debounce) ) {
-						button2LastDebounceTime = millis();currentState_pushMachine = led2Off_pushMachine;
-					}
-		break;
+						button2LastDebounceTime = millis();
+						currentState_pushMachine = led2Off_pushMachine;
+					}break;
 			}
 		}
 		

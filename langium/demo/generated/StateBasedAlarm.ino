@@ -26,26 +26,22 @@ long buttonLastDebounceTime = 0;
 					digitalWrite(12,LOW);
 					if( (digitalRead(12) == LOW) ) {
 						currentState = waiting;
-					}
-		break;
+					}break;
 				case waiting:
 					if( (digitalRead(8) == HIGH) && (millis() - buttonLastDebounceTime > debounce) ) {
 						buttonLastDebounceTime = millis();
 						currentState = turnOn;
-					}
-		break;
+					}break;
 				case turnOn:
 					digitalWrite(12,HIGH);
 					if( (digitalRead(12) == HIGH) ) {
 						currentState = done;
-					}
-		break;
+					}break;
 				case done:
 					if( (digitalRead(8) == HIGH) && (millis() - buttonLastDebounceTime > debounce) ) {
 						buttonLastDebounceTime = millis();
 						currentState = off;
-					}
-		break;
+					}break;
 		}
 	}
 	

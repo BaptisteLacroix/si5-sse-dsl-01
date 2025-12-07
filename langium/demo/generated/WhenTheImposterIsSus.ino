@@ -116,8 +116,7 @@ long buttonLastDebounceTime = 0;
 					if( (digitalRead(11) == HIGH) && (millis() - buttonLastDebounceTime > debounce) ) {
 						buttonLastDebounceTime = millis();
 						currentState = play;
-					}
-		break;
+					}break;
 				case play:
                     tone(8, NOTE_C4, 200);
                     delay(260);
@@ -194,8 +193,7 @@ long buttonLastDebounceTime = 0;
 					if( (digitalRead(11) == LOW) && (millis() - buttonLastDebounceTime > debounce) ) {
 						buttonLastDebounceTime = millis();
 						currentState = wait;
-					}
-		break;
+					}break;
 		}
 	}
 	

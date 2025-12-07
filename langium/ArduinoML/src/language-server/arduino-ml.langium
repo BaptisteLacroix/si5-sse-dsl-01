@@ -25,7 +25,7 @@ StateMachine:
     '}';
 
 Brick:
-	(Actuator | Sensor | AnalogActuator | AnalogSensor | Buzzer | LCD);
+	(Actuator | Sensor | AnalogActuator | AnalogSensor | SerialBrick | Buzzer | LCD);
 
 Actuator:
 	{infer Actuator}
@@ -43,6 +43,10 @@ AnalogSensor:
 	{infer AnalogSensor}
 	'AnalogSensor' name=ID (':' inputPin=INT)?;
 
+SerialBrick:
+	{infer SerialBrick}
+	'Serial' name=ID ':' baudRate=INT;
+
 LCD:
 	{infer LCD}
 	'LCD' name=ID;
@@ -59,7 +63,8 @@ State:
 
 Action:
 	actuator=[Actuator:ID] '<=' value=Signal |
-	analogActuator=[AnalogActuator:ID] '<=' analogValue=AnalogValue;
+	analogActuator=[AnalogActuator:ID] '<=' analogValue=AnalogValue |
+	serial=[SerialBrick:ID] '<=' message=STRING;
 
 Beep :
 	buzzer=[Buzzer:ID] 'makes' repetition=INT duration=BeepDuration 'bips';
@@ -90,7 +95,8 @@ PrimaryExpression infers LogicalExpression:
 
 Condition:
 	brick=[Brick:ID] 'is' value=Signal |
-	analogBrick=[AnalogSensor:ID] operator=('>' | '<' | '>=' | '<=' | '==' | '!=') threshold=INT;
+	analogBrick=[AnalogSensor:ID] operator=('>' | '<' | '>=' | '<=' | '==' | '!=') threshold=INT |
+	serial=[SerialBrick:ID] 'is' message=STRING;
 
 Signal:
 	value=(HIGH | LOW);

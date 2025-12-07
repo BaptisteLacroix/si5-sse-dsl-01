@@ -8,16 +8,20 @@ LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 //Wiring code generated from an ArduinoML model
 // Application name: LCDDisplay
 
+// Pin Allocation Summary:
+//   led (Actuator): Pin D13 (13)
+//   button (Sensor): Pin D9 (9)
+
 long debounce = 200;
 enum STATE {off, on};
 
 STATE currentState = off;
+bool stateChanged = true;
 
 bool buttonBounceGuard = false;
 long buttonLastDebounceTime = 0;
 
             
-
 	void setup(){
 		lcd.begin(16, 2); // Initialize LCD 16x2
 		lcd.clear();
@@ -25,31 +29,37 @@ long buttonLastDebounceTime = 0;
 		pinMode(9, INPUT); // button [Sensor]
 	}
 	void loop() {
-		switch(currentState){
+			switch(currentState){
 
 				case off:
+					// Execute actions on state entry
+					if (stateChanged) {
+						stateChanged = false;
 					digitalWrite(13,LOW);
 			lcd.clear();
 			lcd.setCursor(0, 0);
 			lcd.print('LED is OFF');
-			if( (digitalRead(9) == HIGH) && (millis() - buttonLastDebounceTime > debounce) ) {
-				buttonLastDebounceTime = millis();
-				currentState = on;
-			}
-	
-				break;
+					}
+					if( (digitalRead(9) == HIGH) && (millis() - buttonLastDebounceTime > debounce) ) {
+						buttonLastDebounceTime = millis();
+						currentState = on;
+						stateChanged = true;
+					}break;
 				case on:
+					// Execute actions on state entry
+					if (stateChanged) {
+						stateChanged = false;
 					digitalWrite(13,HIGH);
 			lcd.clear();
 			lcd.setCursor(0, 0);
 			lcd.print('LED: ');
 			lcd.print(digitalRead(13) == HIGH ? "ON" : "OFF");
-			if( (digitalRead(9) == HIGH) && (millis() - buttonLastDebounceTime > debounce) ) {
-				buttonLastDebounceTime = millis();
-				currentState = off;
-			}
-	
-				break;
+					}
+					if( (digitalRead(9) == HIGH) && (millis() - buttonLastDebounceTime > debounce) ) {
+						buttonLastDebounceTime = millis();
+						currentState = off;
+						stateChanged = true;
+					}break;
 		}
 	}
 	

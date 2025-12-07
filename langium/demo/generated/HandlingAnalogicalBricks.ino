@@ -22,14 +22,12 @@ STATE currentState = monitoring;
 					digitalWrite(9,LOW);
 					if( (analogRead(1) > 300) ) {
 						currentState = alarm;
-					}
-		break;
+					}break;
 				case alarm:
 					digitalWrite(9,HIGH);
 					if( (analogRead(1) <= 300) ) {
 						currentState = monitoring;
-					}
-		break;
+					}break;
 		}
 	}
 	

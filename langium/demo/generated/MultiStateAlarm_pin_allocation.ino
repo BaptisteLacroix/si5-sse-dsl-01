@@ -30,24 +30,21 @@ long buttonLastDebounceTime = 0;
 					if( (digitalRead(10) == HIGH) && (millis() - buttonLastDebounceTime > debounce) ) {
 						buttonLastDebounceTime = millis();
 						currentState = buzzing;
-					}
-		break;
+					}break;
 				case buzzing:
 					digitalWrite(8,HIGH);
 					digitalWrite(9,LOW);
 					if( (digitalRead(10) == HIGH) && (millis() - buttonLastDebounceTime > debounce) ) {
 						buttonLastDebounceTime = millis();
 						currentState = led_on;
-					}
-		break;
+					}break;
 				case led_on:
 					digitalWrite(8,LOW);
 					digitalWrite(9,HIGH);
 					if( (digitalRead(10) == HIGH) && (millis() - buttonLastDebounceTime > debounce) ) {
 						buttonLastDebounceTime = millis();
 						currentState = ready;
-					}
-		break;
+					}break;
 		}
 	}
 	

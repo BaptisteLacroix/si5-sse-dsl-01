@@ -68,6 +68,18 @@ export class PinAllocator {
         // Then allocate pins for bricks without manual assignment
         for (const brick of bricks) {
             if (!this.allocations.has(brick)) {
+                // Skip SerialBrick - it uses hardware serial pins (0-1) and doesn't need allocation
+                if (brick.$type === 'SerialBrick') {
+                    console.log(`[PinAllocator] Skipping pin allocation for SerialBrick: ${brick.name} (uses hardware serial pins 0-1)`);
+                    continue;
+                }
+
+                // Skip LCD - it uses hardcoded pins in the generator
+                if (brick.$type === 'LCD') {
+                    console.log(`[PinAllocator] Skipping pin allocation for LCD: ${brick.name} (uses hardcoded pins 2-12)`);
+                    continue;
+                }
+
                 const pin = this.allocatePin(brick);
                 if (pin === -1) {
                     console.error(`[PinAllocator] ERROR: Unable to allocate pin for brick: ${brick.name}`);

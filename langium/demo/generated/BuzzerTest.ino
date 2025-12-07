@@ -116,8 +116,7 @@ long buttonLastDebounceTime = 0;
 					if( (digitalRead(2) == HIGH) && (millis() - buttonLastDebounceTime > debounce) ) {
 						buttonLastDebounceTime = millis();
 						currentState = alert;
-					}
-		break;
+					}break;
 				case alert:
                     for(int i = 0; i < 3; i++) {
                         tone(8, 1000, 100);
@@ -136,8 +135,7 @@ long buttonLastDebounceTime = 0;
 					if( (digitalRead(2) == LOW) && (millis() - buttonLastDebounceTime > debounce) ) {
 						buttonLastDebounceTime = millis();
 						currentState = wait;
-					}
-		break;
+					}break;
 		}
 	}
 	
